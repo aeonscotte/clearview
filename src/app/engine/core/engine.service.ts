@@ -1,9 +1,15 @@
 import { Injectable } from '@angular/core';
+import { Engine } from '@babylonjs/core/Engines/engine';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class EngineService {
+  private engine!: Engine;
 
-  constructor() { }
+  createEngine(canvas: HTMLCanvasElement): void {
+    this.engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+  }
+
+  getEngine(): Engine {
+    return this.engine;
+  }
 }
