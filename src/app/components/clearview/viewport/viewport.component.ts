@@ -1,6 +1,8 @@
-import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
-import { EngineService } from './../../../engine/core/engine.service';
-import { SceneService } from './../../../engine/core/scene.service';
+// components/viewport/viewport.component.ts
+import { Component, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { EngineService } from '../../../engine/core/engine.service';
+import { SceneManagerService } from '../../../engine/core/scene-manager.service';
+import { Scene001 } from '../../../engine/scenes/scene001.scene';
 
 @Component({
   selector: 'clearview-viewport',
@@ -12,12 +14,14 @@ export class ViewportComponent implements AfterViewInit {
 
   constructor(
     private engineService: EngineService,
-    private sceneService: SceneService
+    private sceneManager: SceneManagerService
   ) { }
 
-  ngAfterViewInit(): void {
+  async ngAfterViewInit(): Promise<void> {
     const canvas = this.canvasRef.nativeElement;
+
     this.engineService.createEngine(canvas);
-    this.sceneService.createScene(canvas, this.engineService.getEngine());
+
+    await this.sceneManager.loadScene(Scene001, canvas);
   }
 }
