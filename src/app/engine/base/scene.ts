@@ -1,8 +1,8 @@
-// engine/base/game-scene.ts
+// src/app/engine/base/scene.ts
 import type { Scene } from '@babylonjs/core';
 import type { Engine } from '@babylonjs/core/Engines/engine';
 
-export abstract class GameScene {
+export abstract class BaseScene {
   protected scene!: Scene;
 
   constructor(protected engine: Engine) { }

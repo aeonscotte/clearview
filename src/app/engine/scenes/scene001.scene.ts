@@ -1,11 +1,11 @@
-// engine/scenes/scene001.scene.ts
-import { GameScene } from '../base/game-scene';
+// src/app/engine/scenes/scene001.scene.ts
+import { BaseScene } from '../base/scene';
 import { Scene } from '@babylonjs/core/scene';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 
-export class Scene001 extends GameScene {
+export class Scene001 extends BaseScene {
   async init(canvas: HTMLCanvasElement): Promise<Scene> {
     this.scene = new Scene(this.engine);
 

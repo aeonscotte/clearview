@@ -1,4 +1,4 @@
-// engine/core/engine.service.ts
+// src/app/engine/core/engine.service.ts
 import { Injectable } from '@angular/core';
 import { Engine } from '@babylonjs/core/Engines/engine';
 

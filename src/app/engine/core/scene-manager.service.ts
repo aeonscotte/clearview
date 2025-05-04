@@ -1,16 +1,16 @@
-// engine/core/scene-manager.service.ts
+// src/app/engine/core/scene-manager.service.ts
 import { Injectable } from '@angular/core';
 import { Engine } from '@babylonjs/core/Engines/engine';
-import { GameScene } from '../base/game-scene';
+import { BaseScene } from '../base/scene';
 import { EngineService } from './engine.service';
 
 @Injectable({ providedIn: 'root' })
 export class SceneManagerService {
-  private currentSceneInstance?: GameScene;
+  private currentSceneInstance?: BaseScene;
 
   constructor(private engineService: EngineService) { }
 
-  async loadScene(sceneClass: new (engine: Engine) => GameScene, canvas: HTMLCanvasElement): Promise<void> {
+  async loadScene(sceneClass: new (engine: Engine) => BaseScene, canvas: HTMLCanvasElement): Promise<void> {
     if (this.currentSceneInstance) {
       this.currentSceneInstance.dispose();
     }
