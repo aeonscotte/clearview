@@ -1,5 +1,6 @@
+// src/app/pages/home/home.component.ts
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router'; // Import RouterModul
+import { RouterModule } from '@angular/router'; // Import RouterModule
 
 @Component({
   selector: 'app-home',

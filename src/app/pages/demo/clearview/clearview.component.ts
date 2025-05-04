@@ -1,3 +1,4 @@
+// src/app/pages/demo/clearview/clearview.component.ts
 import { Component } from '@angular/core';
 import { ViewportComponent } from '../../../components/clearview/viewport/viewport.component';
 

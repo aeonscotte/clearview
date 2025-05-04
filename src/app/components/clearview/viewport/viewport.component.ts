@@ -1,4 +1,4 @@
-// components/viewport/viewport.component.ts
+// src/app/components/viewport/viewport.component.ts
 import { Component, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { EngineService } from '../../../engine/core/engine.service';
 import { SceneManagerService } from '../../../engine/core/scene-manager.service';
