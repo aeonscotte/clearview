@@ -3,10 +3,10 @@ import { Component } from '@angular/core';
 import { RouterModule } from '@angular/router'; // Import RouterModule
 
 @Component({
-  selector: 'app-home',
-  imports: [RouterModule],
-  templateUrl: './home.component.html',
-  styleUrl: './home.component.css'
+    selector: 'app-home',
+    imports: [RouterModule],
+    templateUrl: './home.component.html',
+    styleUrl: './home.component.less'
 })
 export class HomeComponent {
 

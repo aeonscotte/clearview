@@ -5,23 +5,23 @@ import { SceneManagerService } from '../../../engine/core/scene-manager.service'
 import { Scene001 } from '../../../engine/scenes/scene001.scene';
 
 @Component({
-  selector: 'clearview-viewport',
-  templateUrl: './viewport.component.html',
-  styleUrls: ['./viewport.component.css'],
+    selector: 'clearview-viewport',
+    templateUrl: './viewport.component.html',
+    styleUrls: ['./viewport.component.less'],
 })
 export class ViewportComponent implements AfterViewInit {
-  @ViewChild('renderCanvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('renderCanvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
-  constructor(
-    private engineService: EngineService,
-    private sceneManager: SceneManagerService
-  ) { }
+    constructor(
+        private engineService: EngineService,
+        private sceneManager: SceneManagerService
+    ) { }
 
-  async ngAfterViewInit(): Promise<void> {
-    const canvas = this.canvasRef.nativeElement;
+    async ngAfterViewInit(): Promise<void> {
+        const canvas = this.canvasRef.nativeElement;
 
-    this.engineService.createEngine(canvas);
+        this.engineService.createEngine(canvas);
 
-    await this.sceneManager.loadScene(Scene001, canvas);
-  }
+        await this.sceneManager.loadScene(Scene001, canvas);
+    }
 }
