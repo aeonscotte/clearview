@@ -1,26 +1,38 @@
-// src/app/engine/scenes/scene001.scene.ts
 import { BaseScene } from '../base/scene';
 import { Scene } from '@babylonjs/core/scene';
-import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
-import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { CameraService } from '../player/camera.service';
+import { LightService } from '../world/light.service';
 
 export class Scene001 extends BaseScene {
+    private cameraService = new CameraService();
+    private lightService = new LightService();
+
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         this.scene = new Scene(this.engine);
-
-        const camera = new ArcRotateCamera('Camera001', Math.PI / 2, Math.PI / 3, 8, new Vector3(0, 1, 0), this.scene);
-        camera.attachControl(canvas, true);
-
-        const light = new HemisphericLight('light001', new Vector3(0, 1, 0), this.scene);
-
-        // 🌤 You can initialize weather, terrain, sky, etc. here specific to Scene001
-
+        this.setupCamera(canvas);
+        this.setupLighting();
         return this.scene;
     }
 
+    private setupCamera(canvas: HTMLCanvasElement): void {
+        this.cameraService.createArcRotateCamera(this.scene, canvas, {
+            name: 'Camera001',
+            target: new Vector3(0, 1, 0),
+            radius: 8,
+        });
+    }
+
+    private setupLighting(): void {
+        this.lightService.createHemisphericLight(this.scene, {
+            name: 'Light001',
+            direction: new Vector3(0, 1, 0),
+        });
+    }
+
     update(deltaTime: number): void {
-        // 🎮 Game loop logic per frame here (e.g., weather.update())
+        // 🎮 Per-frame logic here
+
     }
 
     dispose(): void {
