@@ -1,14 +1,13 @@
-// src/app/pages/home/home.component.ts
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
 @Component({
-    selector: 'app-home',
+    selector: 'app-about',
     imports: [CommonModule, RouterModule],
-    templateUrl: './home.component.html',
-    styleUrl: './home.component.less'
+    templateUrl: './about.component.html',
+    styleUrl: './about.component.less'
 })
-export class HomeComponent {
+export class AboutComponent {
 
 }

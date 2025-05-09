@@ -1,3 +1,15 @@
 <!-- src/app/pages/home/home.component.html -->
-<h1>Welcome to ClearView</h1>
-<button routerLink="/demo">Go to Demo</button>
+<section class="container">
+    <div class="card-glass">
+        <h1>Project ClearView</h1>
+        <p>
+            Bringing performant 3D-WebApps to life with <strong>Angular</strong>, <strong>TypeScript</strong> and
+            <strong>Babylon.js</strong>.
+        </p>
+        <p>
+            Check out the interactive Demo.
+        </p>
+        <a class="btn" [routerLink]="'/demo'">Start Demo</a>
+        <a class="btn" [routerLink]="'/about'">About PCV</a>
+    </div>
+</section>

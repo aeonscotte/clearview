@@ -1,1 +1,144 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* ===================================
+   FONTS: Satoshi OTF Imports
+=================================== */
+@font-face {
+    font-family: 'Satoshi';
+    src: url('/assets/fonts/satoshi/OTF/Satoshi-Regular.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('/assets/fonts/satoshi/OTF/Satoshi-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('/assets/fonts/satoshi/OTF/Satoshi-Italic.otf') format('opentype');
+    font-weight: 400;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('/assets/fonts/satoshi/OTF/Satoshi-BoldItalic.otf') format('opentype');
+    font-weight: 700;
+    font-style: italic;
+}
+
+/* ===================================
+   THEME VARIABLES
+=================================== */
+// Colors
+@gradient-colors: linear-gradient(-45deg, #5ee7df, #b490ca, #8ec5fc, #e0c3fc);
+@glass-bg: rgba(255, 255, 255, 0.1);
+@glass-border: rgba(255, 255, 255, 0.2);
+@paper-bg: #ffffff;
+@primary-color: #2563eb; // Tailwind's blue-600
+@primary-hover: #1e40af;
+@text-light: #ffffff;
+@text-dark: #1f2937;
+
+// Typography
+@font-heading: 'Clash Display', sans-serif;
+@font-body: 'Satoshi', sans-serif;
+@font-size-base: 1rem;
+@font-size-lg: 1.25rem;
+@font-size-xl: 1.75rem;
+
+// Layout
+@container-max-width: 600px;
+@border-radius: 1rem;
+@shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
+@shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.08);
+
+/* ===================================
+   GLOBAL STYLES
+=================================== */
+
+body {
+    font-family: @font-body;
+    margin: 0;
+    padding: 0;
+    color: @text-dark;
+    background: @gradient-colors;
+    background-size: 400% 400%;
+    animation: gradientMove 15s ease infinite;
+    overflow-y: hidden;
+}
+
+@keyframes gradientMove {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    padding: 2rem;
+    text-align: center;
+}
+
+.card-glass {
+    background: @glass-bg;
+    backdrop-filter: blur(10px);
+    border: 1px solid @glass-border;
+    border-radius: @border-radius;
+    box-shadow: @shadow-lg;
+    padding: 2rem;
+    max-width: @container-max-width;
+    color: @text-light;
+}
+
+.card-paper {
+    background: @paper-bg;
+    border-radius: @border-radius;
+    box-shadow: @shadow-sm;
+    padding: 2rem;
+    max-width: @container-max-width;
+    color: @text-dark;
+}
+
+.btn {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background-color: @primary-color;
+    color: white;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: background 0.3s ease;
+
+    &:hover {
+        background-color: @primary-hover;
+    }
+}
+
+h1,
+h2,
+h3 {
+    font-family: @font-body;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+p {
+    font-size: @font-size-base;
+    line-height: 1.6;
+}
