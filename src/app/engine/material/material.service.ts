@@ -65,10 +65,10 @@ export class MaterialService {
         const albedoTex = new Texture(`${materialUrl}albedo.png`);
         const normHeightTex = new Texture(`${materialUrl}normalHeight.png`);
         const aoTex = new Texture(`${materialUrl}ao.png`);
-        const metallicTex = new Texture(`${materialUrl}metallic.png`);
+        const metalRoughTex = new Texture(`${materialUrl}metalRough.png`);
 
         // Tiling
-        [albedoTex, normHeightTex, aoTex, metallicTex].forEach(tex => {
+        [albedoTex, normHeightTex, aoTex, metalRoughTex].forEach(tex => {
             tex.uScale = tileSize;
             tex.vScale = tileSize;
         });
@@ -81,7 +81,7 @@ export class MaterialService {
         material.useParallax = true;
         material.useParallaxOcclusion = true;
         material.parallaxScaleBias = 0.03;
-        material.metallicTexture = metallicTex;
+        material.metallicTexture = metalRoughTex;
         material.useRoughnessFromMetallicTextureAlpha = true;
         material.ambientTexture = aoTex;
         material.ambientTextureStrength = 0.8;

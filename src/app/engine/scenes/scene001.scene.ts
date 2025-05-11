@@ -61,7 +61,7 @@ export class Scene001 extends BaseScene {
         });
 
         ground.material = this.materialService.createGroundMaterial(
-            '/assets/materials/terrain/rocky-rugged-terrain/',
+            '/assets/materials/terrain/rocky-rugged-terrain_1/',
             2
         );
 
