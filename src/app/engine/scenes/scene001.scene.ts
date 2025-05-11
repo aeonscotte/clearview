@@ -33,12 +33,12 @@ export class Scene001 extends BaseScene {
     }
 
     private setupLighting(): void {
-        // this.lightService.createHemisphericLight(this.scene, {
-        //     name: 'Light001',
-        //     direction: new Vector3(0, 1, 0),
-        // });
+        this.lightService.createHemisphericLight(this.scene, {
+            name: 'Light001',
+            direction: new Vector3(0, 1, 0),
+        });
 
-        this.scene.createDefaultLight(true);
+        // this.scene.createDefaultLight(true);
         this.scene.clearColor.set(0, 0, 0, 0); // optional: transparent background
 
         // const environment = this.scene.createDefaultEnvironment({
