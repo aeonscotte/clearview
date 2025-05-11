@@ -4,7 +4,6 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { int } from '@babylonjs/core';
 
 export interface PBRMaterialOptions {
     name?: string;
