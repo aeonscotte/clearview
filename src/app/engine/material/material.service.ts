@@ -73,19 +73,19 @@ export class MaterialService {
             tex.vScale = tileSize;
         });
 
-        // // Material setup
+        // Material setup
         const material = new PBRMaterial("groundMaterial");
 
         material.albedoTexture = albedoTex;
         material.bumpTexture = normHeightTex;
         material.useParallax = true;
         material.useParallaxOcclusion = true;
-        material.parallaxScaleBias = 0.03;
+        material.parallaxScaleBias = 0.015;
         material.metallicTexture = metalRoughTex;
         material.useRoughnessFromMetallicTextureAlpha = true;
         material.ambientTexture = aoTex;
         material.ambientTextureStrength = 0.8;
-        material.bumpTexture.level = 0.5;
+        material.bumpTexture.level = 100;
         return material;
     }
 
