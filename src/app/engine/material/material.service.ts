@@ -63,37 +63,29 @@ export class MaterialService {
     createGroundMaterial(materialUrl: string, tileSize: number): PBRMaterial {
         // Texture loading
         const albedoTex = new Texture(`${materialUrl}albedo.png`);
-        const normalTex = new Texture(`${materialUrl}normal-dx.png`);
-        const heightTex = new Texture(`${materialUrl}height.png`);
+        const normHeightTex = new Texture(`${materialUrl}normalHeight.png`);
         const aoTex = new Texture(`${materialUrl}ao.png`);
         const metallicTex = new Texture(`${materialUrl}metallic.png`);
-        const roughnessTex = new Texture(`${materialUrl}roughness.png`);
 
         // Tiling
-        [albedoTex, normalTex, heightTex, aoTex, metallicTex, roughnessTex].forEach(tex => {
+        [albedoTex, normHeightTex, aoTex, metallicTex].forEach(tex => {
             tex.uScale = tileSize;
             tex.vScale = tileSize;
         });
 
-        // Material setup
+        // // Material setup
         const material = new PBRMaterial("groundMaterial");
 
         material.albedoTexture = albedoTex;
-        material.bumpTexture = heightTex; // height as bump for parallax
+        material.bumpTexture = normHeightTex;
         material.useParallax = true;
         material.useParallaxOcclusion = true;
-        material.parallaxScaleBias = 0.2;
-
+        material.parallaxScaleBias = 0.03;
         material.metallicTexture = metallicTex;
         material.useRoughnessFromMetallicTextureAlpha = true;
-
         material.ambientTexture = aoTex;
         material.ambientTextureStrength = 0.8;
-
-        // material.metallic = 0.0;
-        // material.roughness = 1.0;
-        material.bumpTexture.level = 0.8;
-
+        material.bumpTexture.level = 0.5;
         return material;
     }
 
