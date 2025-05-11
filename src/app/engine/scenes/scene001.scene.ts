@@ -6,8 +6,7 @@ import { LightService } from '../world/light.service';
 import { TerrainService } from '../world/terrain.service';
 import { MaterialService } from '../material/material.service';
 import '@babylonjs/core/Helpers/sceneHelpers';
-
-
+import { CubeTexture } from '@babylonjs/core';
 
 export class Scene001 extends BaseScene {
     private cameraService = new CameraService();
@@ -15,10 +14,10 @@ export class Scene001 extends BaseScene {
     private terrainService = new TerrainService();
     private materialService = new MaterialService();
 
-
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         this.scene = new Scene(this.engine);
         this.setupCamera(canvas);
+        this.setupEnvironment();
         this.setupLighting();
         this.setupTerrain();
         return this.scene;
@@ -39,18 +38,7 @@ export class Scene001 extends BaseScene {
             intensity: 10
         });
 
-        // this.scene.createDefaultLight(true);
-        // this.scene.clearColor.set(0, 0, 0, 0); // optional: transparent background
-
-        // const environment = this.scene.createDefaultEnvironment({
-        //     createGround: false,
-        //     createSkybox: true,
-        //     skyboxSize: 100,
-        // });
-
-        // if (environment?.skybox && this.scene.environmentTexture) {
-        //     this.scene.environmentIntensity = 1.0; // Adjust for PBR brightness
-        // }
+        this.scene.clearColor.set(0, 0, 0, 0); // optional: transparent background
     }
 
     private setupTerrain(): void {
@@ -64,6 +52,9 @@ export class Scene001 extends BaseScene {
             '/assets/materials/terrain/rocky-rugged-terrain_1/',
             3
         );
+    }
+
+    private setupEnvironment(): void {
 
     }
 
