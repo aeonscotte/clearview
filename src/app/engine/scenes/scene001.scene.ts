@@ -55,14 +55,14 @@ export class Scene001 extends BaseScene {
 
     private setupTerrain(): void {
         const ground = this.terrainService.createGround(this.scene, {
-            width: 20,
-            height: 20,
+            width: 60,
+            height: 60,
             subdivisions: 4,
         });
 
         ground.material = this.materialService.createGroundMaterial(
             '/assets/materials/terrain/rocky-rugged-terrain_1/',
-            2
+            3
         );
 
     }
