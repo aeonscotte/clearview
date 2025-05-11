@@ -4,6 +4,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { int } from '@babylonjs/core';
 
 export interface PBRMaterialOptions {
     name?: string;
@@ -58,4 +59,42 @@ export class MaterialService {
         material.diffuseTexture = new Texture(textureUrl, scene);
         mesh.material = material;
     }
+
+    createGroundMaterial(materialUrl: string, tileSize: number): PBRMaterial {
+        // Texture loading
+        const albedoTex = new Texture(`${materialUrl}albedo.png`);
+        const normalTex = new Texture(`${materialUrl}normal-dx.png`);
+        const heightTex = new Texture(`${materialUrl}height.png`);
+        const aoTex = new Texture(`${materialUrl}ao.png`);
+        const metallicTex = new Texture(`${materialUrl}metallic.png`);
+        const roughnessTex = new Texture(`${materialUrl}roughness.png`);
+
+        // Tiling
+        [albedoTex, normalTex, heightTex, aoTex, metallicTex, roughnessTex].forEach(tex => {
+            tex.uScale = tileSize;
+            tex.vScale = tileSize;
+        });
+
+        // Material setup
+        const material = new PBRMaterial("groundMaterial");
+
+        material.albedoTexture = albedoTex;
+        material.bumpTexture = heightTex; // height as bump for parallax
+        material.useParallax = true;
+        material.useParallaxOcclusion = true;
+        material.parallaxScaleBias = 0.2;
+
+        material.metallicTexture = metallicTex;
+        material.useRoughnessFromMetallicTextureAlpha = true;
+
+        material.ambientTexture = aoTex;
+        material.ambientTextureStrength = 0.8;
+
+        // material.metallic = 0.0;
+        // material.roughness = 1.0;
+        material.bumpTexture.level = 0.8;
+
+        return material;
+    }
+
 }
