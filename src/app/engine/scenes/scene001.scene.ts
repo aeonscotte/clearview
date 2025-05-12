@@ -6,7 +6,6 @@ import { LightService } from '../world/light.service';
 import { TerrainService } from '../world/terrain.service';
 import { MaterialService } from '../material/material.service';
 import '@babylonjs/core/Helpers/sceneHelpers';
-import { CubeTexture } from '@babylonjs/core';
 
 export class Scene001 extends BaseScene {
     private cameraService = new CameraService();
@@ -17,9 +16,9 @@ export class Scene001 extends BaseScene {
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         this.scene = new Scene(this.engine);
         this.setupCamera(canvas);
-        this.setupEnvironment();
         this.setupLighting();
         this.setupTerrain();
+        this.setupEnvironment();
         return this.scene;
     }
 
