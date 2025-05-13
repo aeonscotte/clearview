@@ -28,18 +28,22 @@ export class AtmosphereService {
         // Fog color transitions from night to day
         const dayFog = new Color3(0.8, 0.9, 1.0);   // Light blue fog (morning/noon)
         const nightFog = new Color3(0.05, 0.05, 0.1); // Dark blue fog (night)
-
         const fogColor = Color3.Lerp(nightFog, dayFog, sunFactor);
         scene.fogColor = fogColor;
-
-        // Add pulsing effect (slow sine wave for breathing)
-        const fogPulse = 0.005 * Math.sin(this.timeService.getElapsed() * 0.5);
-        scene.fogDensity = 0.02 - (sunFactor * 0.012) + fogPulse;
 
         // Ambient light color based on sun/moon blend
         const dayAmbient = new Color3(0.6, 0.6, 0.6);
         const nightAmbient = new Color3(0.1, 0.1, 0.2);
         scene.ambientColor = Color3.Lerp(nightAmbient, dayAmbient, sunFactor);
+
+        // Add pulsing effect (slow sine wave for breathing)
+        const fogPulse = 0.005 * Math.sin(this.timeService.getElapsed() * 0.5);
+
+        // Height based fog density
+        // Simulate fog density based on camera height
+        const camY = scene.activeCamera?.position.y ?? 0;
+        const fogAttenuation = Math.exp(-camY / 0);
+        scene.fogDensity = fogAttenuation * (0.02 - (sunFactor * 0.012) + fogPulse);
     }
 }
 
