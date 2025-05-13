@@ -78,20 +78,14 @@ export class MaterialService {
         material.albedoTexture = albedoTex;
         material.bumpTexture = normHeightTex;
 
-        // Enable two-sided rendering
-        material.backFaceCulling = false;
-
-        // Critical setting for two-sided normals!
-        material.twoSidedLighting = true;
-
         material.useParallax = true;
         material.useParallaxOcclusion = true;
-        material.parallaxScaleBias = 0.015;
+        material.parallaxScaleBias = 0.03;
         material.metallicTexture = metalRoughTex;
         material.useRoughnessFromMetallicTextureAlpha = true;
         material.ambientTexture = aoTex;
-        material.ambientTextureStrength = 0.8;
-        material.bumpTexture.level = 1.0;
+        material.ambientTextureStrength = 0.3;
+        material.bumpTexture.level = 0.5;
 
         return material;
     }
