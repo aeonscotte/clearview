@@ -26,20 +26,21 @@ export class AtmosphereService {
         const elapsed = this.timeService.getElapsed();
         
         // Get celestial factors from the shared service
-        const { sunHeight, dayFactor, nightFactor, dawnFactor, duskFactor } = 
-            this.celestialService.getCelestialPositions();
+        const { 
+            sunHeight, dayFactor, nightFactor, dawnFactor, duskFactor 
+        } = this.celestialService.getCelestialPositions();
         
         // Define colors for different times of day - more realistic values
-        const nightFog = new Color3(0.015, 0.015, 0.04);  // Very dark blue-black matching sky
-        const dawnFog = new Color3(0.65, 0.4, 0.25);      // Warm orange-gold matching sunrise
-        const dayFog = new Color3(0.7, 0.8, 0.95);        // Light blue matching daytime sky
-        const duskFog = new Color3(0.6, 0.25, 0.15);      // Deep orange-red matching sunset
+        const nightFog = new Color3(0.015, 0.015, 0.04);      // Very dark blue-black matching sky
+        const dawnFog = new Color3(0.65, 0.4, 0.25);          // Warm orange-gold matching sunrise
+        const dayFog = new Color3(0.7, 0.8, 0.95);            // Light blue matching daytime sky
+        const duskFog = new Color3(0.55, 0.25, 0.15);         // Deeper orange-red matching sunset
             
         // Ambient light colors - adjusted for physical realism
-        const nightAmbient = new Color3(0.05, 0.05, 0.1); // Subtle blue night ambient
-        const dawnAmbient = new Color3(0.35, 0.2, 0.15);  // Warm sunrise ambient
-        const dayAmbient = new Color3(0.55, 0.55, 0.6);   // Neutral daytime ambient
-        const duskAmbient = new Color3(0.3, 0.15, 0.1);   // Warm sunset ambient
+        const nightAmbient = new Color3(0.05, 0.05, 0.1);     // Subtle blue night ambient
+        const dawnAmbient = new Color3(0.35, 0.2, 0.15);      // Warm sunrise ambient
+        const dayAmbient = new Color3(0.55, 0.55, 0.6);       // Neutral daytime ambient
+        const duskAmbient = new Color3(0.3, 0.15, 0.1);       // Warm sunset ambient
         
         // Blend fog colors based on time periods
         scene.fogColor = new Color3(0, 0, 0);

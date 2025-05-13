@@ -48,24 +48,25 @@ export class LightService {
             sunDir,
             moonDir,
             sunHeight,
-            isDay,
-            isNight,
+            dayFactor,
+            nightFactor,
+            dawnFactor,
+            duskFactor,
             sunIntensity,
             moonIntensity,
-            sunColor
+            sunColor,
+            moonColor
         } = this.celestialService.getCelestialPositions();
         
         // Update light directions
         this.sunLight.direction = sunDir.scale(-1); // Lights point toward objects
         this.moonLight.direction = moonDir.scale(-1);
         
-        // IMPORTANT: Completely disable lights when they shouldn't be active
-        // This prevents issues with PBR material shading
-        
-        // Sun light - only active during day
-        if (sunHeight > 0) {
-            // Day time - enable sun, update intensity
-            this.sunLight.intensity = sunIntensity;
+        // Sun light - now properly transitions during dawn/dusk
+        if (dayFactor > 0 || dawnFactor > 0 || duskFactor > 0) {
+            // Day or transition time - enable sun with appropriate intensity
+            const actualSunIntensity = sunIntensity * (dayFactor + dawnFactor * 0.7 + duskFactor * 0.7);
+            this.sunLight.intensity = actualSunIntensity;
             this.sunLight.diffuse = sunColor;
             this.sunLight.setEnabled(true);
         } else {
@@ -74,10 +75,13 @@ export class LightService {
             this.sunLight.intensity = 0;
         }
         
-        // Moon light - only active during night
-        if (sunHeight < 0) {
-            // Night time - enable moon, update intensity
-            this.moonLight.intensity = moonIntensity;
+        // Moon light - properly transitions during dawn/dusk
+        if (nightFactor > 0 || dawnFactor > 0 || duskFactor > 0) {
+            // Night or transition time - enable moon with appropriate intensity
+            // Moon is strongest at night, dimmer during dawn/dusk
+            const actualMoonIntensity = moonIntensity * (nightFactor + dawnFactor * 0.2 + duskFactor * 0.2);
+            this.moonLight.intensity = actualMoonIntensity;
+            this.moonLight.diffuse = moonColor;
             this.moonLight.setEnabled(true);
         } else {
             // Day time - disable moon completely

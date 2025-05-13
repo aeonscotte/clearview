@@ -13,17 +13,17 @@ export class CelestialService {
      * Gets all celestial positions and lighting factors based on current world time
      * Key time points:
      * - 0 hours = Midnight (Moon at zenith)
-     * - 6 hours = Sunrise (Sun at horizon)
+     * - 5:30 hours = Night ends, dawn begins
+     * - 6:30 hours = Dawn ends, day begins
      * - 12 hours = Noon (Sun at zenith)
-     * - 18 hours = Sunset (Sun at horizon)
+     * - 17:30 hours = Day ends, dusk begins
+     * - 18:30 hours = Dusk ends, night begins
      */
     getCelestialPositions() {
         const worldTime = this.timeService.getWorldTime(); // 0-24 hours
         const normalizedTime = (worldTime % 24) / 24; // 0-1 over 24-hour period
         
         // Calculate sun angle
-        // At midnight (0h): sun angle = -90° (below horizon)
-        // At noon (12h): sun angle = +90° (at zenith)
         const sunAngle = (normalizedTime * 2.0 * Math.PI) - (0.5 * Math.PI);
         
         // Calculate sun position
@@ -36,33 +36,82 @@ export class CelestialService {
         // Moon is exactly opposite the sun
         const moonDir = new Vector3(-sunX, -sunY, sunZ).normalize();
         
-        // Determine if it's day or night
-        const isNight = sunY < 0; // True when sun is below horizon
-        const isDay = sunY > 0;   // True when sun is above horizon
+        // Define time windows (in 24-hour format, as normalized values 0-1)
+        const nightStartNorm = 18.5 / 24;   // 18:30
+        const nightEndNorm = 5.5 / 24;      // 05:30
+        const dawnStartNorm = 5.5 / 24;     // 05:30
+        const dawnEndNorm = 6.5 / 24;       // 06:30
+        const dayStartNorm = 6.5 / 24;      // 06:30
+        const dayEndNorm = 17.5 / 24;       // 17:30
+        const duskStartNorm = 17.5 / 24;    // 17:30
+        const duskEndNorm = 18.5 / 24;      // 18:30
         
-        // Calculate precise lighting intensities
-        // Sun intensity increases with height when above horizon, 0 when below
-        const sunIntensity = Math.max(0, sunY) * 1.5; // Max 1.5 at noon
+        // Calculate precise time-of-day factors using smoothstep for smooth transitions
         
-        // Moon intensity increases with height when above horizon, 0 when below
-        const moonIntensity = Math.max(0, -sunY) * 0.3; // Max 0.3 at midnight
+        // Night factor (18:30-00:00 and 00:00-05:30)
+        // Handle the night wrapping around midnight
+        let nightFactor = 0;
+        if (normalizedTime >= nightStartNorm || normalizedTime <= nightEndNorm) {
+            // If we're after night start or before night end, calculate appropriate factor
+            if (normalizedTime >= nightStartNorm) {
+                // Evening portion (18:30-00:00): ramp up from 0 to 1
+                nightFactor = Math.min(1, (normalizedTime - nightStartNorm) / (1 - nightStartNorm) * 1.5);
+            } else {
+                // Morning portion (00:00-05:30): stay at 1, then start ramping down
+                nightFactor = Math.min(1, 1 - (normalizedTime / nightEndNorm) * 0.3);
+            }
+        }
         
-        // Calculate time-of-day factors for color blending (more precise transitions)
-        // Full daylight when sun is high
-        const dayFactor = isDay ? Math.min(1, sunY * 2.0) : 0;
+        // Dawn factor (05:30-06:30)
+        let dawnFactor = normalizedTime >= dawnStartNorm && normalizedTime <= dawnEndNorm 
+            ? this.smoothstep(0, 1, (normalizedTime - dawnStartNorm) / (dawnEndNorm - dawnStartNorm))
+            : 0;
         
-        // Full night when sun is well below horizon
-        const nightFactor = isNight ? Math.min(1, -sunY * 2.0) : 0;
+        // Day factor (06:30-17:30)
+        let dayFactor = 0;
+        if (normalizedTime >= dayStartNorm && normalizedTime <= dayEndNorm) {
+            // Ramp up at start of day
+            if (normalizedTime < dayStartNorm + 0.02) {
+                dayFactor = (normalizedTime - dayStartNorm) / 0.02;
+            } 
+            // Ramp down at end of day
+            else if (normalizedTime > dayEndNorm - 0.02) {
+                dayFactor = (dayEndNorm - normalizedTime) / 0.02;
+            } 
+            // Full day in the middle
+            else {
+                dayFactor = 1;
+            }
+        }
         
-        // Dawn factor peaks at sunrise (6h, normalizedTime = 0.25)
-        const dawnFactor = Math.max(0, 1.0 - Math.abs((normalizedTime - 0.25) * 20.0));
+        // Dusk factor (17:30-18:30)
+        let duskFactor = normalizedTime >= duskStartNorm && normalizedTime <= duskEndNorm 
+            ? this.smoothstep(0, 1, (normalizedTime - duskStartNorm) / (duskEndNorm - duskStartNorm))
+            : 0;
         
-        // Dusk factor peaks at sunset (18h, normalizedTime = 0.75)
-        const duskFactor = Math.max(0, 1.0 - Math.abs((normalizedTime - 0.75) * 20.0));
+        // Normalize the factors to ensure they sum to 1 (essential for proper blending)
+        const totalFactor = nightFactor + dawnFactor + dayFactor + duskFactor;
+        if (totalFactor > 0) {
+            nightFactor /= totalFactor;
+            dawnFactor /= totalFactor;
+            dayFactor /= totalFactor;
+            duskFactor /= totalFactor;
+        }
         
-        // Get sun and moon colors based on height
+        // Get sun and moon colors, adjusted for time of day
         const sunColor = this.getSunColor(sunY);
-        const moonColor = new Color3(0.8, 0.8, 1.0); // Consistent cool blue moonlight
+        
+        // Moon intensity should be dimmed during dawn and dusk
+        const baseMoonIntensity = Math.max(0, -sunY) * 0.3; // Original calculation
+        const moonDimFactor = 1 - (dawnFactor + duskFactor) * 0.8; // Dim by 80% at peak dawn/dusk
+        const moonIntensity = baseMoonIntensity * moonDimFactor;
+        
+        // Consistent cool blue moonlight, dimmed at dawn/dusk
+        const moonColor = new Color3(
+            0.8 * moonDimFactor, 
+            0.8 * moonDimFactor, 
+            1.0 * moonDimFactor
+        );
         
         return {
             // Positions
@@ -73,24 +122,26 @@ export class CelestialService {
             sunHeight: sunY,   // Sun height (-1 to 1)
             moonHeight: -sunY, // Moon height (-1 to 1)
             
-            // Time factors
-            isDay,             // True during daylight hours
-            isNight,           // True during night hours
-            dayFactor,         // 0 at night, 1 at noon
-            nightFactor,       // 0 during day, 1 at midnight
-            dawnFactor,        // Peaks at sunrise
-            duskFactor,        // Peaks at sunset
+            // Time factors - these are now based on strict time windows
+            isDay: dayFactor > 0.1,          // True during daylight hours
+            isNight: nightFactor > 0.1,      // True during night hours
+            isDawn: dawnFactor > 0.1,        // True during dawn
+            isDusk: duskFactor > 0.1,        // True during dusk
+            dayFactor,                        // Based on 06:30-17:30 time window
+            nightFactor,                      // Based on 18:30-05:30 time window
+            dawnFactor,                       // Based on 05:30-06:30 time window  
+            duskFactor,                       // Based on 17:30-18:30 time window
             
             // Lighting values
-            sunIntensity,      // 0 at night, peaks at noon
-            moonIntensity,     // 0 during day, peaks at midnight
+            sunIntensity: Math.max(0, sunY) * 1.5 * (1 - nightFactor * 0.8),  // Adjusted for smoother transitions
+            moonIntensity,     // Dimmed during dawn/dusk
             sunColor,          // Changes based on time of day
-            moonColor          // Consistent blue-white
+            moonColor          // Consistent blue-white, dimmed at dawn/dusk
         };
     }
     
     /**
-     * Determines if it's currently night time based on sun position
+     * Determines if it's currently night time based on time factors
      */
     isNight(): boolean {
         const { isNight } = this.getCelestialPositions();
@@ -98,11 +149,27 @@ export class CelestialService {
     }
     
     /**
-     * Determines if it's currently day time based on sun position
+     * Determines if it's currently day time based on time factors
      */
     isDay(): boolean {
         const { isDay } = this.getCelestialPositions();
         return isDay;
+    }
+    
+    /**
+     * Determines if it's currently dawn based on time factors
+     */
+    isDawn(): boolean {
+        const { isDawn } = this.getCelestialPositions();
+        return isDawn;
+    }
+    
+    /**
+     * Determines if it's currently dusk based on time factors
+     */
+    isDusk(): boolean {
+        const { isDusk } = this.getCelestialPositions();
+        return isDusk;
     }
     
     /**
@@ -134,12 +201,23 @@ export class CelestialService {
     }
     
     /**
+     * Helper function for smoothstep interpolation
+     * Creates smooth transition between edge0 and edge1
+     */
+    private smoothstep(edge0: number, edge1: number, x: number): number {
+        // Scale, bias and saturate x to 0..1 range
+        x = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+        // Evaluate polynomial
+        return x * x * (3 - 2 * x);
+    }
+    
+    /**
      * Helper function to debug sun/moon positions at specific times
      */
     debugCelestialPositions(): void {
         // Print positions at key times
-        const times = [0, 6, 12, 18, 24];
-        const labels = ["Midnight", "Sunrise", "Noon", "Sunset", "Midnight"];
+        const times = [0, 5.5, 6.5, 12, 17.5, 18.5, 24];
+        const labels = ["Midnight", "Dawn Start", "Day Start", "Noon", "Dusk Start", "Night Start", "Midnight"];
         
         console.group("Celestial Positions Debug");
         for (let i = 0; i < times.length; i++) {
@@ -155,10 +233,16 @@ export class CelestialService {
             console.log(`${labels[i]} (${time}h):`, {
                 sunHeight: positions.sunHeight.toFixed(2), 
                 moonHeight: positions.moonHeight.toFixed(2),
+                dayFactor: positions.dayFactor.toFixed(2),
+                nightFactor: positions.nightFactor.toFixed(2),
+                dawnFactor: positions.dawnFactor.toFixed(2),
+                duskFactor: positions.duskFactor.toFixed(2),
                 sunIntensity: positions.sunIntensity.toFixed(2),
                 moonIntensity: positions.moonIntensity.toFixed(2),
                 isDay: positions.isDay,
-                isNight: positions.isNight
+                isNight: positions.isNight,
+                isDawn: positions.isDawn,
+                isDusk: positions.isDusk
             });
             
             // Restore actual time
