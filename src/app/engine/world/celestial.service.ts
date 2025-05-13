@@ -55,10 +55,10 @@ export class CelestialService {
         const nightFactor = isNight ? Math.min(1, -sunY * 2.0) : 0;
         
         // Dawn factor peaks at sunrise (6h, normalizedTime = 0.25)
-        const dawnFactor = Math.max(0, 1.0 - Math.abs((normalizedTime - 0.25) * 16.0));
+        const dawnFactor = Math.max(0, 1.0 - Math.abs((normalizedTime - 0.25) * 20.0));
         
         // Dusk factor peaks at sunset (18h, normalizedTime = 0.75)
-        const duskFactor = Math.max(0, 1.0 - Math.abs((normalizedTime - 0.75) * 16.0));
+        const duskFactor = Math.max(0, 1.0 - Math.abs((normalizedTime - 0.75) * 20.0));
         
         // Get sun and moon colors based on height
         const sunColor = this.getSunColor(sunY);

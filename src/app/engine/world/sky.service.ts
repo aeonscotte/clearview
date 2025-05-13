@@ -138,17 +138,45 @@ export class SkyService {
             uniform float cloudiness;   // Cloud coverage (0-1)
             varying vec3 vPosition;
             varying vec3 vNormal;
-
-            // Simple hash function for minimal star twinkling
+            
+            // Improved hash function
             float hash(vec3 p) {
-                p = fract(p * vec3(123.34, 234.34, 345.65));
-                p += dot(p, p + 34.23);
+                p = fract(p * vec3(443.8975, 397.2973, 491.1871));
+                p += dot(p, p + 19.19);
                 return fract(p.x * p.y * p.z);
             }
-    
-            // Very minimal star effect - just enough to be visible at night
+            
+            // Higher quality noise function
+            float noise(vec3 p) {
+                vec3 i = floor(p);
+                vec3 f = fract(p);
+                
+                // Smoother interpolation
+                f = f * f * (3.0 - 2.0 * f);
+                
+                // Mix 8 corners
+                float n = mix(
+                    mix(
+                        mix(hash(i), hash(i + vec3(1,0,0)), f.x),
+                        mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x),
+                        f.y
+                    ),
+                    mix(
+                        mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                        mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x),
+                        f.y
+                    ),
+                    f.z
+                );
+                
+                return n;
+            }
+            
+            // Improved star field with more subtle twinkling
             vec3 stars(vec3 dir, float time) {
-                // Rotate stars slowly with time
+                vec3 starColor = vec3(0.0);
+                
+                // Rotate stars slowly with Earth's rotation
                 float angle = time * 0.1;
                 float c = cos(angle);
                 float s = sin(angle);
@@ -157,135 +185,236 @@ export class SkyService {
                     dir.y,
                     dir.x * s + dir.z * c
                 );
-        
-                // Create sparse star field
-                float size = 200.0;
-                vec3 pos = rotatedDir * size;
-                vec3 grid = floor(pos);
-        
-                // Only some grid cells have stars
-                float cell = hash(grid);
-                if (cell > 0.99) { // Very sparse - only 1% of cells have stars
-                    // Subtle twinkling
-                    float brightness = fract(cell * 12345.67890 + time * 0.5);
-                    brightness = pow(brightness, 10.0) * 0.8;
-            
-                    // Star color - mostly white with slight blue tint
-                    return vec3(0.8, 0.9, 1.0) * brightness;
+                
+                // Stars with varying size and brightness
+                for (int i = 0; i < 3; i++) { // Three layers of stars
+                    float scale = 200.0 + float(i) * 150.0; // Different scales
+                    vec3 pos = rotatedDir * scale;
+                    vec3 grid = floor(pos);
+                    
+                    // Determine if this cell has a star
+                    float starPresence = hash(grid);
+                    
+                    // Create stars with different density per layer
+                    float brightnessThreshold = 0.97 + float(i) * 0.01; // Different thresholds
+                    
+                    if (starPresence > brightnessThreshold) {
+                        // Star properties
+                        float starBrightness = (starPresence - brightnessThreshold) / (1.0 - brightnessThreshold);
+                        starBrightness = pow(starBrightness, 1.5); // Adjust brightness curve
+                        
+                        // Subtle twinkling - never goes completely off
+                        float baseLevel = 0.7 + 0.2 * float(i); // Stars don't disappear completely
+                        float twinkleSpeed = 3.0 + hash(grid) * 7.0; // Varied speeds
+                        float twinkling = baseLevel + (1.0 - baseLevel) * sin(time * twinkleSpeed + starPresence * 20.0) * 0.5 + 0.5;
+                        
+                        // Star color - slight variation based on temperature (bluer/redder)
+                        float temperature = hash(grid + vec3(123.456, 789.012, 345.678));
+                        vec3 colorTint = mix(
+                            vec3(1.0, 0.7, 0.5), // Reddish stars
+                            vec3(0.7, 0.8, 1.0),  // Blueish stars
+                            temperature
+                        );
+                        
+                        // Size falloff to avoid pixelated appearance
+                        vec3 starOffset = fract(pos) - 0.5;
+                        float distToCenter = length(starOffset) * 2.0;
+                        float falloff = 1.0 - smoothstep(0.0, 0.8, distToCenter);
+                        
+                        // Add this star to the total
+                        starColor += colorTint * starBrightness * twinkling * falloff * (0.5 - float(i) * 0.15);
+                    }
                 }
-        
-                return vec3(0.0);
+                
+                return starColor;
             }
-    
+            
+            // Rayleigh scattering approximation
+            vec3 rayleighScattering(float sunCosTheta, float height) {
+                // Simplification of atmospheric scattering
+                // This simulates the blue sky caused by Rayleigh scattering
+                vec3 rayleighCoeff = vec3(5.8, 13.5, 33.1) * 0.000001; // RGB coefficients
+                float rayleighDepth = 1.0 / (height * 0.1 + 0.1); // More scattering near horizon
+                
+                return rayleighCoeff * rayleighDepth * (1.0 + sunCosTheta * sunCosTheta);
+            }
+            
             void main(void) {
                 // Get view direction
                 vec3 dir = normalize(vPosition);
-
+            
                 // Sun and moon specifics
                 float sunDot = max(dot(dir, sunPosition), 0.0);
                 float moonDot = max(dot(dir, moonPosition), 0.0);
                 float sunHeight = sunPosition.y;  // -1 to 1
-
-                // Time of day factors
-                float dayFactor = smoothstep(-0.05, 0.1, sunHeight);
-                float nightFactor = smoothstep(0.1, -0.05, sunHeight);
-                float dawnFactor = smoothstep(-0.15, -0.05, sunHeight) * smoothstep(0.15, 0.0, sunHeight);
-                float duskFactor = smoothstep(0.15, 0.0, sunHeight) * smoothstep(-0.15, -0.05, sunHeight);
-
-                // Height factor (horizon to zenith)
-                float t = max(0.0, dir.y); // 0 at horizon, 1 at zenith
-
-                // Sky colors - simple gradients
-                vec3 zenithDayColor = vec3(0.2, 0.4, 0.8);      // Deep blue
-                vec3 horizonDayColor = vec3(0.7, 0.8, 1.0);     // Light blue
-
-                vec3 zenithNightColor = vec3(0.02, 0.02, 0.05); // Almost black
-                vec3 horizonNightColor = vec3(0.05, 0.05, 0.1); // Deep blue
-
-                vec3 zenithDawnColor = vec3(0.2, 0.2, 0.5);     // Deep purple-blue
-                vec3 horizonDawnColor = vec3(0.9, 0.6, 0.5);    // Orange-pink
-
-                vec3 zenithDuskColor = vec3(0.2, 0.2, 0.4);     // Deep purple-blue
-                vec3 horizonDuskColor = vec3(0.8, 0.5, 0.4);    // Orange-red
-
-                // Blend zenith and horizon colors based on view elevation
-                vec3 dayColor = mix(horizonDayColor, zenithDayColor, t);
-                vec3 nightColor = mix(horizonNightColor, zenithNightColor, t);
-                vec3 dawnColor = mix(horizonDawnColor, zenithDawnColor, t);
-                vec3 duskColor = mix(horizonDuskColor, zenithDuskColor, t);
-
-                // Get stars, visible at night (very minimal)
+                
+                // Time of day transitions - smoother blending
+                // Use smoothstep with tighter transition periods
+                float dayFactor = smoothstep(-0.025, 0.15, sunHeight);
+                float nightFactor = smoothstep(0.15, -0.025, sunHeight);
+                
+                // Dawn/dusk factors - peak exactly at sunrise/sunset
+                float dawnFactor = smoothstep(-0.2, -0.025, sunHeight) * smoothstep(0.15, -0.025, sunHeight);
+                float duskFactor = smoothstep(0.15, -0.025, sunHeight) * smoothstep(-0.2, -0.025, sunHeight);
+                
+                // Normalized view direction height (0 at horizon, 1 at zenith)
+                float viewHeight = max(0.0, dir.y);
+                
+                // Sky gradient height factor
+                float t = smoothstep(0.0, 0.4, viewHeight); // Smoother transition near horizon
+                
+                // Generate physically-based sky colors
+                // Deep blue zenith to pale blue horizon during day
+                vec3 zenithDayColor = vec3(0.18, 0.26, 0.48); // Deeper blue 
+                vec3 horizonDayColor = vec3(0.7, 0.8, 0.95);  // Pale blue-white
+                
+                // Deep navy zenith to dark blue horizon at night
+                vec3 zenithNightColor = vec3(0.015, 0.015, 0.04); // Almost black with hint of blue
+                vec3 horizonNightColor = vec3(0.04, 0.04, 0.08);  // Very dark blue
+                
+                // Sunrise colors - deep blue to orange-pink
+                vec3 zenithDawnColor = vec3(0.1, 0.15, 0.3);    // Deep blue with purple tint
+                vec3 horizonDawnColor = vec3(0.9, 0.6, 0.35);   // Orange-pink-gold
+                
+                // Sunset colors - similar to dawn but deeper reds
+                vec3 zenithDuskColor = vec3(0.1, 0.15, 0.25);   // Deep blue-purple
+                vec3 horizonDuskColor = vec3(0.8, 0.35, 0.15);  // Deep red-orange
+                
+                // The height at which to blend colors changes based on time of day
+                // During sunrise/sunset, extend the horizon colors higher
+                float blendHeightDay = t;
+                float blendHeightDawn = mix(t, smoothstep(0.0, 0.8, viewHeight), 0.7);
+                float blendHeightDusk = mix(t, smoothstep(0.0, 0.8, viewHeight), 0.7);
+                float blendHeightNight = t;
+                
+                // Blend zenith and horizon colors with appropriate height factors
+                vec3 dayColor = mix(horizonDayColor, zenithDayColor, blendHeightDay);
+                vec3 nightColor = mix(horizonNightColor, zenithNightColor, blendHeightNight);
+                vec3 dawnColor = mix(horizonDawnColor, zenithDawnColor, blendHeightDawn);
+                vec3 duskColor = mix(horizonDuskColor, zenithDuskColor, blendHeightDusk);
+                
+                // Get stars, visible at night with more realistic twinkling
                 vec3 starField = vec3(0.0);
-                if (nightFactor > 0.5 && dir.y > 0.0) {
-                    starField = stars(dir, iTime) * nightFactor;
+                if (nightFactor > 0.0 && dir.y > 0.0) {
+                    // Stars appear gradually as it gets darker
+                    starField = stars(dir, iTime) * smoothstep(0.0, 0.5, nightFactor);
                 }
-
-                // Blend sky colors based on time of day
-                vec3 skyColor = 
-                    dayColor * dayFactor + 
-                    (nightColor + starField) * nightFactor + 
-                    dawnColor * dawnFactor + 
-                    duskColor * duskFactor;
-
-                // Small, realistic sun
-                float sunSize = 0.005; // Smaller sun
-                float sunDisc = smoothstep(0.9995 - sunSize, 0.9999, sunDot);
-                float sunGlow = pow(sunDot, 64.0) * (1.0 - nightFactor); // Sharper, smaller glow
-
-                // Sun colors based on height
-                vec3 sunColor = mix(
-                    vec3(1.0, 0.5, 0.2),  // Sunset orange
-                    vec3(1.0, 0.95, 0.8), // Midday white-yellow
-                    smoothstep(0.0, 0.5, sunHeight)
+                
+                // Blend sky colors based on time of day - ensure smooth transitions
+                vec3 skyColor = mix(
+                    mix(
+                        mix(nightColor, dawnColor, dawnFactor),
+                        dayColor, 
+                        dayFactor
+                    ),
+                    duskColor,
+                    duskFactor
                 );
-
+                
+                // Add stars to night sky
+                skyColor += starField;
+                
+                // Much smaller, realistic sun
+                float sunSize = 0.002; // Significantly smaller sun
+                float sunDisc = smoothstep(0.9998 - sunSize, 0.9999, sunDot);
+                
+                // Sun glow should be larger than the sun itself, but still fairly concentrated
+                float sunGlow = pow(sunDot, 150.0) * (1.0 - nightFactor); // Sharper falloff for more concentrated glow
+                float sunOuterGlow = pow(sunDot, 20.0) * (1.0 - nightFactor) * 0.2; // Wider, subtle outer glow
+                
+                // Sun colors based on height - correct subtle transitions
+                vec3 sunColor = mix(
+                    vec3(1.0, 0.3, 0.0),  // Low sun (deep orange)
+                    mix(
+                        vec3(1.0, 0.6, 0.0),  // Rising sun (orange-yellow)
+                        vec3(1.0, 0.95, 0.8), // High sun (bright white-yellow)
+                        smoothstep(0.1, 0.5, sunHeight)
+                    ),
+                    smoothstep(-0.025, 0.1, sunHeight)
+                );
+                
                 // Add sun only when above/near horizon
                 if (sunHeight > -0.1) {
-                    skyColor += sunColor * sunDisc * (1.0 - nightFactor * 0.95);
-                    skyColor += sunColor * 0.3 * sunGlow; // Less intense glow
+                    // Sun disc with gradual intensity based on height
+                    skyColor += sunColor * sunDisc * mix(0.5, 1.0, smoothstep(-0.1, 0.2, sunHeight));
+                    
+                    // Inner glow
+                    skyColor += sunColor * sunGlow;
+                    
+                    // Outer glow - less intense
+                    skyColor += mix(sunColor, vec3(1.0), 0.5) * sunOuterGlow;
                 }
-
-                // Small, realistic moon
-                float moonSize = 0.005; // Smaller moon
-                float moonDisc = smoothstep(0.9996 - moonSize, 0.9999, moonDot);
-                float moonGlow = pow(moonDot, 64.0) * nightFactor; // Sharper, smaller glow
-
+                
+                // Smaller, realistic moon
+                float moonSize = 0.0015; // Smaller moon
+                float moonDisc = smoothstep(0.9998 - moonSize, 0.9999, moonDot);
+                
+                // Moon glow should be more subtle than sun
+                float moonGlow = pow(moonDot, 200.0) * nightFactor * 0.5;
+                float moonOuterGlow = pow(moonDot, 30.0) * nightFactor * 0.1;
+                
                 // Add moon only when above horizon
                 if (moonPosition.y > -0.1) {
-                    // Simple light gray moon with subtle blue tint
+                    // Light gray moon with subtle blue tint
                     vec3 moonColor = vec3(0.9, 0.9, 0.95);
+                    
+                    // Moon disc
                     skyColor += moonColor * moonDisc * nightFactor;
-                    skyColor += vec3(0.6, 0.7, 0.9) * moonGlow * 0.1; // Very subtle glow
+                    
+                    // Moon glow - very subtle
+                    skyColor += vec3(0.6, 0.7, 0.9) * moonGlow;
+                    skyColor += vec3(0.3, 0.4, 0.6) * moonOuterGlow;
                 }
-
-                // Apply clouds when enabled (simple, minimal)
+                
+                // Apply clouds when enabled
                 if (cloudiness > 0.0 && dir.y > 0.0) {
-                    // Very basic cloud pattern
-                    vec2 cloudPos = dir.xz / (dir.y + 0.1);
-                    float cloudPattern = sin(cloudPos.x * 2.0 + iTime * 0.02) * 
-                                        sin(cloudPos.y * 2.0 + iTime * 0.01) * 0.5 + 0.5;
-
-                    // Apply cloudiness threshold
-                    float clouds = smoothstep(1.0 - cloudiness * 0.8, 1.0, cloudPattern);
-
-                    // Cloud color based on time of day
-                    vec3 cloudDay = vec3(1.0);
-                    vec3 cloudNight = vec3(0.2, 0.2, 0.3);
-                    vec3 cloudDawn = vec3(0.9, 0.7, 0.5);
-                    vec3 cloudDusk = vec3(0.8, 0.6, 0.4);
-
-                    vec3 cloudColor = 
-                        cloudDay * dayFactor + 
-                        cloudNight * nightFactor + 
-                        cloudDawn * dawnFactor + 
-                        cloudDusk * duskFactor;
-
+                    // Improved cloud pattern
+                    vec3 cloudCoord = vec3(dir.xz / (dir.y + 0.1), iTime * 0.01);
+                    float cloudBase = noise(cloudCoord * 2.0);
+                    float cloudDetail = noise(cloudCoord * 8.0);
+                    
+                    // More natural cloud shapes
+                    float cloudPattern = cloudBase * 0.7 + cloudDetail * 0.3;
+                    
+                    // Apply cloudiness threshold with softer edges
+                    float clouds = smoothstep(1.0 - cloudiness * 0.8, 1.0 - cloudiness * 0.4, cloudPattern);
+                    
+                    // Cloud color based on time of day - physical light scattering
+                    vec3 cloudSunlight = mix(
+                        vec3(0.8, 0.3, 0.0), // Sunset/sunrise
+                        vec3(1.0, 1.0, 1.0), // Daytime
+                        smoothstep(-0.1, 0.3, sunHeight)
+                    );
+                    
+                    vec3 cloudAmbient = mix(
+                        vec3(0.1, 0.1, 0.2), // Night ambient
+                        vec3(0.5, 0.5, 0.6), // Day ambient
+                        smoothstep(-0.1, 0.1, sunHeight)
+                    );
+                    
+                    // Calculate light arriving at cloud
+                    float sunContribution = max(0.0, dot(vec3(0.0, 1.0, 0.0), sunPosition)) * 0.5 + 0.5;
+                    vec3 cloudIllumination = mix(cloudAmbient, cloudSunlight, sunContribution);
+                    
+                    // Final cloud color combines illumination with scattering
+                    vec3 cloudColor = mix(
+                        cloudIllumination * 0.3, // Darker base
+                        cloudIllumination,        // Brighter lit parts
+                        clouds * 0.7 + 0.3        // Vary by cloud density
+                    );
+                    
                     // Blend clouds with sky
                     skyColor = mix(skyColor, cloudColor, clouds * cloudiness);
                 }
-
+                
+                // Tonemap the final color for better dynamic range
+                skyColor = skyColor / (skyColor + vec3(1.0)); // Simple Reinhard tonemap
+                
+                // Apply a subtle gamma correction for more accurate colors
+                skyColor = pow(skyColor, vec3(0.9));
+            
                 gl_FragColor = vec4(skyColor, 1.0);
             }
-        `;;
+        `;
     }
 }
