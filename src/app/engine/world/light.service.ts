@@ -48,10 +48,9 @@ export class LightService {
             sunDir,
             moonDir,
             sunHeight,
-            dayFactor,
-            nightFactor,
-            dawnFactor,
-            duskFactor,
+            moonHeight,
+            sunVisibility,
+            moonOpacity,
             sunIntensity,
             moonIntensity,
             sunColor,
@@ -62,29 +61,26 @@ export class LightService {
         this.sunLight.direction = sunDir.scale(-1); // Lights point toward objects
         this.moonLight.direction = moonDir.scale(-1);
         
-        // Sun light - now properly transitions during dawn/dusk
-        if (dayFactor > 0 || dawnFactor > 0 || duskFactor > 0) {
-            // Day or transition time - enable sun with appropriate intensity
-            const actualSunIntensity = sunIntensity * (dayFactor + dawnFactor * 0.7 + duskFactor * 0.7);
-            this.sunLight.intensity = actualSunIntensity;
+        // Sun light - only active when sun is visible
+        if (sunVisibility > 0 && sunHeight > -0.05) {
+            // Update sun properties
+            this.sunLight.intensity = sunIntensity;
             this.sunLight.diffuse = sunColor;
             this.sunLight.setEnabled(true);
         } else {
-            // Night time - disable sun completely
+            // Disable sun completely when not visible
             this.sunLight.setEnabled(false);
             this.sunLight.intensity = 0;
         }
         
-        // Moon light - properly transitions during dawn/dusk
-        if (nightFactor > 0 || dawnFactor > 0 || duskFactor > 0) {
-            // Night or transition time - enable moon with appropriate intensity
-            // Moon is strongest at night, dimmer during dawn/dusk
-            const actualMoonIntensity = moonIntensity * (nightFactor + dawnFactor * 0.2 + duskFactor * 0.2);
-            this.moonLight.intensity = actualMoonIntensity;
+        // Moon light - only active when moon is visible with some opacity
+        if (moonOpacity > 0 && moonHeight > -0.05) {
+            // Update moon properties
+            this.moonLight.intensity = moonIntensity;
             this.moonLight.diffuse = moonColor;
             this.moonLight.setEnabled(true);
         } else {
-            // Day time - disable moon completely
+            // Disable moon completely when not visible
             this.moonLight.setEnabled(false);
             this.moonLight.intensity = 0;
         }

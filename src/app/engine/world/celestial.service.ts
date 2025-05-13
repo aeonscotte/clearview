@@ -11,19 +11,34 @@ export class CelestialService {
     
     /**
      * Gets all celestial positions and lighting factors based on current world time
-     * Key time points:
-     * - 0 hours = Midnight (Moon at zenith)
-     * - 5:30 hours = Night ends, dawn begins
-     * - 6:30 hours = Dawn ends, day begins
-     * - 12 hours = Noon (Sun at zenith)
-     * - 17:30 hours = Day ends, dusk begins
-     * - 18:30 hours = Dusk ends, night begins
+     * Key time points as specified:
+     * - 00:00 = Midnight (Moon at zenith)
+     * - 05:00 = Dawn Start
+     * - 06:00 = Sunrise (Sun at horizon)
+     * - 07:00 = Dawn End
+     * - 12:00 = Noon (Sun at zenith)
+     * - 17:00 = Dusk Start
+     * - 18:00 = Sunset (Sun at horizon)
+     * - 19:00 = Dusk End
+     * - 24:00 = Midnight (Moon at zenith)
      */
     getCelestialPositions() {
         const worldTime = this.timeService.getWorldTime(); // 0-24 hours
         const normalizedTime = (worldTime % 24) / 24; // 0-1 over 24-hour period
         
+        // Define key time points (in hours)
+        const midnight = 0.0;
+        const dawnStart = 5.0;
+        const sunrise = 6.0;
+        const dawnEnd = 7.0;
+        const noon = 12.0;
+        const duskStart = 17.0;
+        const sunset = 18.0;
+        const duskEnd = 19.0;
+        
         // Calculate sun angle
+        // At midnight (0h): sun angle = -90° (below horizon)
+        // At noon (12h): sun angle = +90° (at zenith)
         const sunAngle = (normalizedTime * 2.0 * Math.PI) - (0.5 * Math.PI);
         
         // Calculate sun position
@@ -36,82 +51,147 @@ export class CelestialService {
         // Moon is exactly opposite the sun
         const moonDir = new Vector3(-sunX, -sunY, sunZ).normalize();
         
-        // Define time windows (in 24-hour format, as normalized values 0-1)
-        const nightStartNorm = 18.5 / 24;   // 18:30
-        const nightEndNorm = 5.5 / 24;      // 05:30
-        const dawnStartNorm = 5.5 / 24;     // 05:30
-        const dawnEndNorm = 6.5 / 24;       // 06:30
-        const dayStartNorm = 6.5 / 24;      // 06:30
-        const dayEndNorm = 17.5 / 24;       // 17:30
-        const duskStartNorm = 17.5 / 24;    // 17:30
-        const duskEndNorm = 18.5 / 24;      // 18:30
+        // Calculate period factors (0-1) for each time of day
         
-        // Calculate precise time-of-day factors using smoothstep for smooth transitions
-        
-        // Night factor (18:30-00:00 and 00:00-05:30)
-        // Handle the night wrapping around midnight
+        // Night period (Dusk End to Dawn Start, wrapping around midnight)
         let nightFactor = 0;
-        if (normalizedTime >= nightStartNorm || normalizedTime <= nightEndNorm) {
-            // If we're after night start or before night end, calculate appropriate factor
-            if (normalizedTime >= nightStartNorm) {
-                // Evening portion (18:30-00:00): ramp up from 0 to 1
-                nightFactor = Math.min(1, (normalizedTime - nightStartNorm) / (1 - nightStartNorm) * 1.5);
+        if (worldTime >= duskEnd || worldTime <= dawnStart) {
+            if (worldTime >= duskEnd) {
+                // Evening to midnight
+                nightFactor = this.smootherstep(duskEnd, duskEnd + 2, worldTime);
             } else {
-                // Morning portion (00:00-05:30): stay at 1, then start ramping down
-                nightFactor = Math.min(1, 1 - (normalizedTime / nightEndNorm) * 0.3);
+                // Midnight to dawn start
+                nightFactor = this.smootherstep(dawnStart, dawnStart - 2, worldTime);
             }
         }
         
-        // Dawn factor (05:30-06:30)
-        let dawnFactor = normalizedTime >= dawnStartNorm && normalizedTime <= dawnEndNorm 
-            ? this.smoothstep(0, 1, (normalizedTime - dawnStartNorm) / (dawnEndNorm - dawnStartNorm))
-            : 0;
+        // Dawn period (Dawn Start to Dawn End, peaking at Sunrise)
+        let dawnFactor = 0;
+        if (worldTime >= dawnStart && worldTime <= dawnEnd) {
+            if (worldTime < sunrise) {
+                // Dawn Start to Sunrise (ramp up)
+                dawnFactor = this.smootherstep(dawnStart, sunrise, worldTime);
+            } else {
+                // Sunrise to Dawn End (ramp down)
+                dawnFactor = this.smootherstep(dawnEnd, sunrise, worldTime);
+            }
+        }
         
-        // Day factor (06:30-17:30)
+        // Day period (Dawn End to Dusk Start)
         let dayFactor = 0;
-        if (normalizedTime >= dayStartNorm && normalizedTime <= dayEndNorm) {
-            // Ramp up at start of day
-            if (normalizedTime < dayStartNorm + 0.02) {
-                dayFactor = (normalizedTime - dayStartNorm) / 0.02;
-            } 
-            // Ramp down at end of day
-            else if (normalizedTime > dayEndNorm - 0.02) {
-                dayFactor = (dayEndNorm - normalizedTime) / 0.02;
-            } 
-            // Full day in the middle
-            else {
-                dayFactor = 1;
+        if (worldTime >= dawnEnd && worldTime <= duskStart) {
+            // Full day phase
+            const dayProgress = (worldTime - dawnEnd) / (duskStart - dawnEnd);
+            
+            // Smoother transition at edges of day
+            if (dayProgress < 0.1) {
+                dayFactor = this.smootherstep(0, 0.1, dayProgress);
+            } else if (dayProgress > 0.9) {
+                dayFactor = this.smootherstep(1, 0.9, dayProgress);
+            } else {
+                dayFactor = 1.0;
             }
         }
         
-        // Dusk factor (17:30-18:30)
-        let duskFactor = normalizedTime >= duskStartNorm && normalizedTime <= duskEndNorm 
-            ? this.smoothstep(0, 1, (normalizedTime - duskStartNorm) / (duskEndNorm - duskStartNorm))
-            : 0;
+        // Dusk period (Dusk Start to Dusk End, peaking at Sunset)
+        let duskFactor = 0;
+        if (worldTime >= duskStart && worldTime <= duskEnd) {
+            if (worldTime < sunset) {
+                // Dusk Start to Sunset (ramp up)
+                duskFactor = this.smootherstep(duskStart, sunset, worldTime);
+            } else {
+                // Sunset to Dusk End (ramp down)
+                duskFactor = this.smootherstep(duskEnd, sunset, worldTime);
+            }
+        }
         
-        // Normalize the factors to ensure they sum to 1 (essential for proper blending)
+        // Normalize factors to ensure they sum to 1.0
         const totalFactor = nightFactor + dawnFactor + dayFactor + duskFactor;
-        if (totalFactor > 0) {
+        if (totalFactor > 0.001) {
             nightFactor /= totalFactor;
             dawnFactor /= totalFactor;
             dayFactor /= totalFactor;
             duskFactor /= totalFactor;
+        } else {
+            // Fallback if all factors are too small
+            dayFactor = 1.0;
         }
         
-        // Get sun and moon colors, adjusted for time of day
-        const sunColor = this.getSunColor(sunY);
+        // Calculate sun visibility and intensity
+        let sunVisibility = 0;
+        if (worldTime >= sunrise && worldTime <= sunset) {
+            // Sun is visible from sunrise to sunset
+            sunVisibility = 1.0;
+        }
         
-        // Moon intensity should be dimmed during dawn and dusk
-        const baseMoonIntensity = Math.max(0, -sunY) * 0.3; // Original calculation
-        const moonDimFactor = 1 - (dawnFactor + duskFactor) * 0.8; // Dim by 80% at peak dawn/dusk
-        const moonIntensity = baseMoonIntensity * moonDimFactor;
+        // Sun intensity varies throughout the day
+        let sunIntensity = 0;
+        if (sunVisibility > 0) {
+            // Base intensity when sun is visible
+            if (worldTime < noon) {
+                // Sunrise to noon: increase to max
+                sunIntensity = this.smootherstep(sunrise, noon, worldTime) * 1.5;
+            } else {
+                // Noon to sunset: decrease to min
+                sunIntensity = this.smootherstep(sunset, noon, worldTime) * 1.5;
+            }
+        }
         
-        // Consistent cool blue moonlight, dimmed at dawn/dusk
-        const moonColor = new Color3(
-            0.8 * moonDimFactor, 
-            0.8 * moonDimFactor, 
-            1.0 * moonDimFactor
-        );
+        // Calculate moon visibility and intensity
+        
+        // Moon opacity
+        let moonOpacity = 0;
+        if (worldTime >= sunset && worldTime <= duskEnd) {
+            // Sunset to dusk end: fade in
+            moonOpacity = this.smootherstep(sunset, duskEnd, worldTime);
+        } else if (worldTime >= duskEnd || worldTime <= dawnStart) {
+            // Fully visible during night
+            moonOpacity = 1.0;
+        } else if (worldTime >= dawnStart && worldTime <= sunrise) {
+            // Dawn start to sunrise: fade out
+            moonOpacity = this.smootherstep(sunrise, dawnStart, worldTime);
+        }
+        
+        // Moon brightness
+        let moonIntensity = 0;
+        const minMoonIntensity = 0.1;
+        const maxMoonIntensity = 0.3;
+        
+        if (worldTime >= sunset && worldTime <= duskEnd) {
+            // Sunset to dusk end: 0 to min
+            moonIntensity = this.smootherstep(sunset, duskEnd, worldTime) * minMoonIntensity;
+        } else if (worldTime >= duskEnd && worldTime <= midnight + 24) { // Handle midnight wrapping
+            // Dusk end to midnight: min to max
+            moonIntensity = this.lerp(minMoonIntensity, maxMoonIntensity, 
+                this.smootherstep(duskEnd, midnight + 24, worldTime));
+        } else if (worldTime >= midnight && worldTime <= dawnStart) {
+            // Midnight to dawn start: max to min
+            moonIntensity = this.lerp(maxMoonIntensity, minMoonIntensity, 
+                this.smootherstep(midnight, dawnStart, worldTime));
+        } else if (worldTime >= dawnStart && worldTime <= sunrise) {
+            // Dawn start to sunrise: min to 0
+            moonIntensity = this.smootherstep(sunrise, dawnStart, worldTime) * minMoonIntensity;
+        }
+        
+        // Apply moon opacity to intensity - if moon isn't visible, intensity is 0
+        moonIntensity *= moonOpacity;
+        
+        // Star visibility
+        let starVisibility = 0;
+        if (worldTime >= duskEnd || worldTime <= dawnStart) {
+            // Fully visible during night
+            starVisibility = 1.0;
+        } else if (worldTime >= sunset && worldTime <= duskEnd) {
+            // Sunset to dusk end: fade in
+            starVisibility = this.smootherstep(sunset, duskEnd, worldTime);
+        } else if (worldTime >= dawnStart && worldTime <= sunrise) {
+            // Dawn start to sunrise: fade out
+            starVisibility = this.smootherstep(sunrise, dawnStart, worldTime);
+        }
+        
+        // Get current sun and moon colors
+        const sunColor = this.getSunColor(worldTime, sunrise, noon, sunset);
+        const moonColor = new Color3(0.8 * moonOpacity, 0.8 * moonOpacity, 1.0 * moonOpacity);
         
         return {
             // Positions
@@ -122,26 +202,37 @@ export class CelestialService {
             sunHeight: sunY,   // Sun height (-1 to 1)
             moonHeight: -sunY, // Moon height (-1 to 1)
             
-            // Time factors - these are now based on strict time windows
-            isDay: dayFactor > 0.1,          // True during daylight hours
-            isNight: nightFactor > 0.1,      // True during night hours
-            isDawn: dawnFactor > 0.1,        // True during dawn
-            isDusk: duskFactor > 0.1,        // True during dusk
-            dayFactor,                        // Based on 06:30-17:30 time window
-            nightFactor,                      // Based on 18:30-05:30 time window
-            dawnFactor,                       // Based on 05:30-06:30 time window  
-            duskFactor,                       // Based on 17:30-18:30 time window
+            // Time factors
+            isDay: dayFactor > 0.5,             // True during primary daylight hours
+            isNight: nightFactor > 0.5,         // True during primary night hours
+            isDawn: dawnFactor > 0.5,           // True during dawn
+            isDusk: duskFactor > 0.5,           // True during dusk
+            dayFactor,                          // Day intensity
+            nightFactor,                        // Night intensity
+            dawnFactor,                         // Dawn intensity
+            duskFactor,                         // Dusk intensity
+            
+            // Celestial object properties
+            sunVisibility,                      // 0-1 based on time of day
+            moonOpacity,                        // 0-1 based on time of day
+            starVisibility,                     // 0-1 based on time of day
             
             // Lighting values
-            sunIntensity: Math.max(0, sunY) * 1.5 * (1 - nightFactor * 0.8),  // Adjusted for smoother transitions
-            moonIntensity,     // Dimmed during dawn/dusk
-            sunColor,          // Changes based on time of day
-            moonColor          // Consistent blue-white, dimmed at dawn/dusk
+            sunIntensity,                       // Sun intensity based on height and time
+            moonIntensity,                      // Moon intensity based on time
+            sunColor,                           // Changes based on time of day
+            moonColor,                          // Moon color with opacity applied
+            
+            // Key time points for other services
+            keyTimes: {
+                midnight, dawnStart, sunrise, dawnEnd, 
+                noon, duskStart, sunset, duskEnd
+            }
         };
     }
     
     /**
-     * Determines if it's currently night time based on time factors
+     * Determines if it's currently night time
      */
     isNight(): boolean {
         const { isNight } = this.getCelestialPositions();
@@ -149,7 +240,7 @@ export class CelestialService {
     }
     
     /**
-     * Determines if it's currently day time based on time factors
+     * Determines if it's currently day time
      */
     isDay(): boolean {
         const { isDay } = this.getCelestialPositions();
@@ -157,7 +248,7 @@ export class CelestialService {
     }
     
     /**
-     * Determines if it's currently dawn based on time factors
+     * Determines if it's currently dawn
      */
     isDawn(): boolean {
         const { isDawn } = this.getCelestialPositions();
@@ -165,7 +256,7 @@ export class CelestialService {
     }
     
     /**
-     * Determines if it's currently dusk based on time factors
+     * Determines if it's currently dusk
      */
     isDusk(): boolean {
         const { isDusk } = this.getCelestialPositions();
@@ -173,51 +264,60 @@ export class CelestialService {
     }
     
     /**
-     * Returns the current sun color based on its height
-     * - Warm white at noon
-     * - Orange/red near horizon
+     * Linear interpolation between two values
      */
-    private getSunColor(sunHeight: number): Color3 {
-        if (sunHeight <= 0) {
-            // Below horizon - sunset/sunrise orange
-            return new Color3(1.0, 0.5, 0.2);
-        } else if (sunHeight < 0.2) {
-            // Just above horizon - blend from orange to yellow
-            const t = sunHeight / 0.2;
-            return Color3.Lerp(
-                new Color3(1.0, 0.5, 0.2), // Sunset orange
-                new Color3(1.0, 0.8, 0.5), // Sunrise yellow
-                t
-            );
+    private lerp(a: number, b: number, t: number): number {
+        return a + t * (b - a);
+    }
+    
+    /**
+     * Returns sun color based on time of day
+     * Using scientifically accurate colors for different phases
+     */
+    private getSunColor(time: number, sunrise: number, noon: number, sunset: number): Color3 {
+        // Scientific sun colors based on solar elevation
+        const sunriseColor = new Color3(1.0, 0.6, 0.3);      // Orange-gold at sunrise
+        const noonColor = new Color3(1.0, 0.95, 0.8);        // Bright white-yellow at noon
+        const sunsetColor = new Color3(1.0, 0.4, 0.2);       // Deep orange-red at sunset
+        
+        if (time < sunrise || time > sunset) {
+            // Below horizon - use sunset/sunrise color based on which is closer
+            return (time > sunset) ? sunsetColor : sunriseColor;
+        } else if (time < noon) {
+            // Sunrise to noon: blend from sunrise to noon
+            const t = this.smootherstep(sunrise, noon, time);
+            return Color3.Lerp(sunriseColor, noonColor, t);
         } else {
-            // Higher in sky - blend from yellow to white
-            const t = Math.min(1, (sunHeight - 0.2) / 0.6);
-            return Color3.Lerp(
-                new Color3(1.0, 0.8, 0.5), // Sunrise yellow
-                new Color3(1.0, 0.95, 0.8), // Noon white-yellow
-                t
-            );
+            // Noon to sunset: blend from noon to sunset
+            const t = this.smootherstep(noon, sunset, time);
+            return Color3.Lerp(noonColor, sunsetColor, t);
         }
     }
     
     /**
-     * Helper function for smoothstep interpolation
-     * Creates smooth transition between edge0 and edge1
+     * Enhanced smoothstep function for smoother transitions
+     * More gradual than standard smoothstep
      */
-    private smoothstep(edge0: number, edge1: number, x: number): number {
-        // Scale, bias and saturate x to 0..1 range
+    private smootherstep(edge0: number, edge1: number, x: number): number {
+        // Handle edge case where edge0 > edge1 (for wrapping around midnight)
+        if (edge0 > edge1 && x < edge0 && x < edge1) {
+            x += 24; // Wrap around for time calculations
+        }
+        
+        // Clamp x to 0..1 range
         x = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-        // Evaluate polynomial
-        return x * x * (3 - 2 * x);
+        
+        // Evaluate 6x^5 - 15x^4 + 10x^3 (better for more gradual transitions)
+        return x * x * x * (x * (x * 6 - 15) + 10);
     }
     
     /**
-     * Helper function to debug sun/moon positions at specific times
+     * Debug function to test celestial positions at specific times
      */
     debugCelestialPositions(): void {
-        // Print positions at key times
-        const times = [0, 5.5, 6.5, 12, 17.5, 18.5, 24];
-        const labels = ["Midnight", "Dawn Start", "Day Start", "Noon", "Dusk Start", "Night Start", "Midnight"];
+        const times = [0, 5, 6, 7, 12, 17, 18, 19, 24];
+        const labels = ["Midnight", "Dawn Start", "Sunrise", "Dawn End", "Noon", 
+                        "Dusk Start", "Sunset", "Dusk End", "Midnight"];
         
         console.group("Celestial Positions Debug");
         for (let i = 0; i < times.length; i++) {
@@ -229,20 +329,19 @@ export class CelestialService {
             const timeService = this.timeService as any;
             timeService.elapsed = (time / 24) * timeService.dayDurationInSeconds;
             
-            const positions = this.getCelestialPositions();
+            const pos = this.getCelestialPositions();
             console.log(`${labels[i]} (${time}h):`, {
-                sunHeight: positions.sunHeight.toFixed(2), 
-                moonHeight: positions.moonHeight.toFixed(2),
-                dayFactor: positions.dayFactor.toFixed(2),
-                nightFactor: positions.nightFactor.toFixed(2),
-                dawnFactor: positions.dawnFactor.toFixed(2),
-                duskFactor: positions.duskFactor.toFixed(2),
-                sunIntensity: positions.sunIntensity.toFixed(2),
-                moonIntensity: positions.moonIntensity.toFixed(2),
-                isDay: positions.isDay,
-                isNight: positions.isNight,
-                isDawn: positions.isDawn,
-                isDusk: positions.isDusk
+                sunHeight: pos.sunHeight.toFixed(2), 
+                moonHeight: pos.moonHeight.toFixed(2),
+                dayFactor: pos.dayFactor.toFixed(2),
+                nightFactor: pos.nightFactor.toFixed(2),
+                dawnFactor: pos.dawnFactor.toFixed(2),
+                duskFactor: pos.duskFactor.toFixed(2),
+                sunIntensity: pos.sunIntensity.toFixed(2),
+                moonIntensity: pos.moonIntensity.toFixed(2),
+                sunVisibility: pos.sunVisibility.toFixed(2),
+                moonOpacity: pos.moonOpacity.toFixed(2),
+                starVisibility: pos.starVisibility.toFixed(2)
             });
             
             // Restore actual time

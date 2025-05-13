@@ -25,49 +25,111 @@ export class AtmosphereService {
     update(scene: Scene): void {
         const elapsed = this.timeService.getElapsed();
         
-        // Get celestial factors from the shared service
+        // Get celestial factors and key times
+        const celestialData = this.celestialService.getCelestialPositions();
+        const { dayFactor, nightFactor, dawnFactor, duskFactor, keyTimes } = celestialData;
+        const worldTime = this.timeService.getWorldTime();
+        
+        // Scientific atmospheric colors based on time of day
+        // Matching the sky shader colors
+        const nightFog = new Color3(0.04, 0.04, 0.08);        // Deep blue
+        const dawnFog = new Color3(0.65, 0.4, 0.25);          // Warm orange-gold
+        const dayFog = new Color3(0.7, 0.8, 0.95);            // Light blue
+        const duskFog = new Color3(0.55, 0.25, 0.15);         // Deep orange-red
+        
+        // Scientific ambient light colors
+        const nightAmbient = new Color3(0.05, 0.05, 0.1);     // Subtle blue
+        const dawnAmbient = new Color3(0.35, 0.2, 0.15);      // Warm orange
+        const dayAmbient = new Color3(0.55, 0.55, 0.6);       // Neutral
+        const duskAmbient = new Color3(0.3, 0.15, 0.1);       // Warm red
+        
+        // Use the same sunrise/sunset transitions as the sky shader
         const { 
-            sunHeight, dayFactor, nightFactor, dawnFactor, duskFactor 
-        } = this.celestialService.getCelestialPositions();
+            midnight, 
+            dawnStart, 
+            sunrise, 
+            dawnEnd, 
+            noon,
+            duskStart, 
+            sunset, 
+            duskEnd 
+        } = keyTimes;
         
-        // Define colors for different times of day - more realistic values
-        const nightFog = new Color3(0.015, 0.015, 0.04);      // Very dark blue-black matching sky
-        const dawnFog = new Color3(0.65, 0.4, 0.25);          // Warm orange-gold matching sunrise
-        const dayFog = new Color3(0.7, 0.8, 0.95);            // Light blue matching daytime sky
-        const duskFog = new Color3(0.55, 0.25, 0.15);         // Deeper orange-red matching sunset
-            
-        // Ambient light colors - adjusted for physical realism
-        const nightAmbient = new Color3(0.05, 0.05, 0.1);     // Subtle blue night ambient
-        const dawnAmbient = new Color3(0.35, 0.2, 0.15);      // Warm sunrise ambient
-        const dayAmbient = new Color3(0.55, 0.55, 0.6);       // Neutral daytime ambient
-        const duskAmbient = new Color3(0.3, 0.15, 0.1);       // Warm sunset ambient
-        
-        // Blend fog colors based on time periods
+        // Get fog color using the same transition logic as the sky shader
         scene.fogColor = new Color3(0, 0, 0);
-        scene.fogColor.addInPlace(nightFog.scale(nightFactor));
-        scene.fogColor.addInPlace(dayFog.scale(dayFactor));
-        scene.fogColor.addInPlace(dawnFog.scale(dawnFactor));
-        scene.fogColor.addInPlace(duskFog.scale(duskFactor));
         
-        // Normalize fog color to avoid over-brightening
-        const totalWeight = Math.min(1.0, nightFactor + dayFactor + dawnFactor * 0.8 + duskFactor * 0.8);
-        if (totalWeight > 0) {
-            scene.fogColor.scaleInPlace(1.0 / totalWeight);
+        // Morning transitions (midnight through dawn to day)
+        if (worldTime >= midnight && worldTime < dawnStart) {
+            // Night - steady
+            scene.fogColor.copyFrom(nightFog);
+        }
+        else if (worldTime >= dawnStart && worldTime < sunrise) {
+            // Dawn start to sunrise: night → dawn
+            const t = this.smootherstep(dawnStart, sunrise, worldTime);
+            Color3.LerpToRef(nightFog, dawnFog, t, scene.fogColor);
+        }
+        else if (worldTime >= sunrise && worldTime < dawnEnd) {
+            // Sunrise to dawn end: dawn → day
+            const t = this.smootherstep(sunrise, dawnEnd, worldTime);
+            Color3.LerpToRef(dawnFog, dayFog, t, scene.fogColor);
+        }
+        else if (worldTime >= dawnEnd && worldTime < duskStart) {
+            // Full day - steady
+            scene.fogColor.copyFrom(dayFog);
+        }
+        else if (worldTime >= duskStart && worldTime < sunset) {
+            // Dusk start to sunset: day → dusk
+            const t = this.smootherstep(duskStart, sunset, worldTime);
+            Color3.LerpToRef(dayFog, duskFog, t, scene.fogColor);
+        }
+        else if (worldTime >= sunset && worldTime < duskEnd) {
+            // Sunset to dusk end: dusk → night
+            const t = this.smootherstep(sunset, duskEnd, worldTime);
+            Color3.LerpToRef(duskFog, nightFog, t, scene.fogColor);
+        }
+        else {
+            // Dusk end to midnight - steady night
+            scene.fogColor.copyFrom(nightFog);
         }
         
-        // Blend ambient colors similarly
+        // Do the same for ambient light color
         scene.ambientColor = new Color3(0, 0, 0);
-        scene.ambientColor.addInPlace(nightAmbient.scale(nightFactor));
-        scene.ambientColor.addInPlace(dayAmbient.scale(dayFactor));
-        scene.ambientColor.addInPlace(dawnAmbient.scale(dawnFactor));
-        scene.ambientColor.addInPlace(duskAmbient.scale(duskFactor));
         
-        // Normalize ambient color
-        if (totalWeight > 0) {
-            scene.ambientColor.scaleInPlace(1.0 / totalWeight);
+        // Morning transitions (midnight through dawn to day)
+        if (worldTime >= midnight && worldTime < dawnStart) {
+            // Night - steady
+            scene.ambientColor.copyFrom(nightAmbient);
+        }
+        else if (worldTime >= dawnStart && worldTime < sunrise) {
+            // Dawn start to sunrise: night → dawn
+            const t = this.smootherstep(dawnStart, sunrise, worldTime);
+            Color3.LerpToRef(nightAmbient, dawnAmbient, t, scene.ambientColor);
+        }
+        else if (worldTime >= sunrise && worldTime < dawnEnd) {
+            // Sunrise to dawn end: dawn → day
+            const t = this.smootherstep(sunrise, dawnEnd, worldTime);
+            Color3.LerpToRef(dawnAmbient, dayAmbient, t, scene.ambientColor);
+        }
+        else if (worldTime >= dawnEnd && worldTime < duskStart) {
+            // Full day - steady
+            scene.ambientColor.copyFrom(dayAmbient);
+        }
+        else if (worldTime >= duskStart && worldTime < sunset) {
+            // Dusk start to sunset: day → dusk
+            const t = this.smootherstep(duskStart, sunset, worldTime);
+            Color3.LerpToRef(dayAmbient, duskAmbient, t, scene.ambientColor);
+        }
+        else if (worldTime >= sunset && worldTime < duskEnd) {
+            // Sunset to dusk end: dusk → night
+            const t = this.smootherstep(sunset, duskEnd, worldTime);
+            Color3.LerpToRef(duskAmbient, nightAmbient, t, scene.ambientColor);
+        }
+        else {
+            // Dusk end to midnight - steady night
+            scene.ambientColor.copyFrom(nightAmbient);
         }
         
-        // Subtle fog movement effect
+        // Subtle atmospheric motion
         const fogPulse = 0.0005 * Math.sin(elapsed * 0.3);
         const fogDrift = 0.0003 * Math.cos(elapsed * 0.7);
         
@@ -76,11 +138,29 @@ export class AtmosphereService {
         const camY = camera?.position.y ?? 0;
         const altitudeFactor = Math.exp(-camY / 150.0);
         
-        // More fog at dawn/dusk, slightly more at night
+        // Scientific fog density variation through the day
+        // More fog at dawn/dusk due to temperature variations
         const duskDawnFactor = Math.max(dawnFactor, duskFactor);
         const baseFog = 0.005 + nightFactor * 0.003 + duskDawnFactor * 0.01 - dayFactor * 0.002;
         
         // Final fog density calculation
         scene.fogDensity = Math.max(0.0002, (baseFog + fogPulse + fogDrift) * altitudeFactor);
+    }
+    
+    /**
+     * Enhanced smoothstep function for smoother transitions
+     * More gradual than standard smoothstep
+     */
+    private smootherstep(edge0: number, edge1: number, x: number): number {
+        // Handle edge case where edge0 > edge1 (for wrapping around midnight)
+        if (edge0 > edge1 && x < edge0 && x < edge1) {
+            x += 24; // Wrap around for time calculations
+        }
+        
+        // Clamp x to 0..1 range
+        x = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+        
+        // Evaluate 6x^5 - 15x^4 + 10x^3 (better for more gradual transitions)
+        return x * x * x * (x * (x * 6 - 15) + 10);
     }
 }

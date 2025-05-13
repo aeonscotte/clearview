@@ -131,371 +131,476 @@ export class SkyService {
         `;
 
         Effect.ShadersStore["enhancedSkyFragmentShader"] = `
-           precision highp float;
-           uniform vec3 sunPosition;   // Sun direction vector
-           uniform vec3 moonPosition;  // Moon direction vector
-           uniform float iTime;        // World time in hours (0-24)
-           uniform float cloudiness;   // Cloud coverage (0-1)
-           varying vec3 vPosition;
-           varying vec3 vNormal;
+            precision highp float;
+            uniform vec3 sunPosition;   // Sun direction vector
+            uniform vec3 moonPosition;  // Moon direction vector
+            uniform float iTime;        // World time in hours (0-24)
+            uniform float cloudiness;   // Cloud coverage (0-1)
+            varying vec3 vPosition;
+            varying vec3 vNormal;
             
-           // Improved hash function
-           float hash(vec3 p) {
-               p = fract(p * vec3(443.8975, 397.2973, 491.1871));
-               p += dot(p, p + 19.19);
-               return fract(p.x * p.y * p.z);
-           }
+            // Improved hash function for stars and noise
+            float hash(vec3 p) {
+                p = fract(p * vec3(443.8975, 397.2973, 491.1871));
+                p += dot(p, p + 19.19);
+                return fract(p.x * p.y * p.z);
+            }
             
-           // Higher quality noise function
-           float noise(vec3 p) {
-               vec3 i = floor(p);
-               vec3 f = fract(p);
-               
-               // Smoother interpolation
-               f = f * f * (3.0 - 2.0 * f);
-               
-               // Mix 8 corners
-               float n = mix(
-                   mix(
-                       mix(hash(i), hash(i + vec3(1,0,0)), f.x),
-                       mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x),
-                       f.y
-                   ),
-                   mix(
-                       mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-                       mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x),
-                       f.y
-                   ),
-                   f.z
-               );
-               
-               return n;
-           }
+            // Higher quality noise function for clouds
+            float noise(vec3 p) {
+                vec3 i = floor(p);
+                vec3 f = fract(p);
+                
+                // Smoother interpolation
+                f = f * f * (3.0 - 2.0 * f);
+                
+                // Mix 8 corners
+                float n = mix(
+                    mix(
+                        mix(hash(i), hash(i + vec3(1,0,0)), f.x),
+                        mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x),
+                        f.y
+                    ),
+                    mix(
+                        mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                        mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x),
+                        f.y
+                    ),
+                    f.z
+                );
+                
+                return n;
+            }
             
-           // Improved star field with more subtle twinkling
-           vec3 stars(vec3 dir, float time) {
-               vec3 starColor = vec3(0.0);
-               
-               // Rotate stars slowly with Earth's rotation
-               float angle = time * 0.1;
-               float c = cos(angle);
-               float s = sin(angle);
-               vec3 rotatedDir = vec3(
-                   dir.x * c - dir.z * s,
-                   dir.y,
-                   dir.x * s + dir.z * c
-               );
-               
-               // Stars with varying size and brightness
-               for (int i = 0; i < 3; i++) { // Three layers of stars
-                   float scale = 200.0 + float(i) * 150.0; // Different scales
-                   vec3 pos = rotatedDir * scale;
-                   vec3 grid = floor(pos);
-                   
-                   // Determine if this cell has a star
-                   float starPresence = hash(grid);
-                   
-                   // Create stars with different density per layer
-                   float brightnessThreshold = 0.97 + float(i) * 0.01; // Different thresholds
-                   
-                   if (starPresence > brightnessThreshold) {
-                       // Star properties
-                       float starBrightness = (starPresence - brightnessThreshold) / (1.0 - brightnessThreshold);
-                       starBrightness = pow(starBrightness, 1.5); // Adjust brightness curve
-                       
-                       // Subtle twinkling - never goes completely off
-                       float baseLevel = 0.7 + 0.2 * float(i); // Stars don't disappear completely
-                       float twinkleSpeed = 3.0 + hash(grid) * 7.0; // Varied speeds
-                       float twinkling = baseLevel + (1.0 - baseLevel) * sin(time * twinkleSpeed + starPresence * 20.0) * 0.5 + 0.5;
-                       
-                       // Star color - slight variation based on temperature (bluer/redder)
-                       float temperature = hash(grid + vec3(123.456, 789.012, 345.678));
-                       vec3 colorTint = mix(
-                           vec3(1.0, 0.7, 0.5), // Reddish stars
-                           vec3(0.7, 0.8, 1.0),  // Blueish stars
-                           temperature
-                       );
-                       
-                       // Size falloff to avoid pixelated appearance
-                       vec3 starOffset = fract(pos) - 0.5;
-                       float distToCenter = length(starOffset) * 2.0;
-                       float falloff = 1.0 - smoothstep(0.0, 0.8, distToCenter);
-                       
-                       // Add this star to the total
-                       starColor += colorTint * starBrightness * twinkling * falloff * (0.5 - float(i) * 0.15);
-                   }
-               }
-               
-               return starColor;
-           }
+            // Realistic star field with subtle twinkling
+            vec3 stars(vec3 dir, float time) {
+                vec3 starColor = vec3(0.0);
+                
+                // Rotate stars slowly with Earth's rotation
+                float angle = time * 0.1;
+                float c = cos(angle);
+                float s = sin(angle);
+                vec3 rotatedDir = vec3(
+                    dir.x * c - dir.z * s,
+                    dir.y,
+                    dir.x * s + dir.z * c
+                );
+                
+                // Stars with varying size and brightness
+                for (int i = 0; i < 3; i++) { // Three layers of stars
+                    float scale = 200.0 + float(i) * 150.0; // Different scales
+                    vec3 pos = rotatedDir * scale;
+                    vec3 grid = floor(pos);
+                    
+                    // Determine if this cell has a star
+                    float starPresence = hash(grid);
+                    
+                    // Create stars with different density per layer
+                    float brightnessThreshold = 0.97 + float(i) * 0.01; // Different thresholds
+                    
+                    if (starPresence > brightnessThreshold) {
+                        // Star properties
+                        float starBrightness = (starPresence - brightnessThreshold) / (1.0 - brightnessThreshold);
+                        starBrightness = pow(starBrightness, 1.5); // Adjust brightness curve
+                        
+                        // Subtle twinkling - never goes completely off
+                        float baseLevel = 0.7 + 0.2 * float(i); // Stars don't disappear completely
+                        float twinkleSpeed = 3.0 + hash(grid) * 7.0; // Varied speeds
+                        float twinkling = baseLevel + (1.0 - baseLevel) * sin(time * twinkleSpeed + starPresence * 20.0) * 0.5 + 0.5;
+                        
+                        // Star color - slight variation based on temperature (bluer/redder)
+                        float temperature = hash(grid + vec3(123.456, 789.012, 345.678));
+                        vec3 colorTint = mix(
+                            vec3(1.0, 0.7, 0.5), // Reddish stars
+                            vec3(0.7, 0.8, 1.0),  // Blueish stars
+                            temperature
+                        );
+                        
+                        // Size falloff to avoid pixelated appearance
+                        vec3 starOffset = fract(pos) - 0.5;
+                        float distToCenter = length(starOffset) * 2.0;
+                        float falloff = 1.0 - smoothstep(0.0, 0.8, distToCenter);
+                        
+                        // Add this star to the total
+                        starColor += colorTint * starBrightness * twinkling * falloff * (0.5 - float(i) * 0.15);
+                    }
+                }
+                
+                return starColor;
+            }
             
-           // Rayleigh scattering approximation
-           vec3 rayleighScattering(float sunCosTheta, float height) {
-               // Simplification of atmospheric scattering
-               // This simulates the blue sky caused by Rayleigh scattering
-               vec3 rayleighCoeff = vec3(5.8, 13.5, 33.1) * 0.000001; // RGB coefficients
-               float rayleighDepth = 1.0 / (height * 0.1 + 0.1); // More scattering near horizon
-               
-               return rayleighCoeff * rayleighDepth * (1.0 + sunCosTheta * sunCosTheta);
-           }
+            // Smoother step function for transitions
+            float smootherstep(float edge0, float edge1, float x) {
+                x = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+                return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
+            }
             
-           // Helper function for time calculation
-           float getTimeFactor(float time, float startTime, float endTime) {
-               // Handle times that wrap around midnight
-               if (startTime > endTime) {
-                   if (time >= startTime || time <= endTime) {
-                       if (time >= startTime) {
-                           return clamp((time - startTime) / (24.0 - startTime), 0.0, 1.0);
-                       } else {
-                           return clamp(1.0 - (endTime - time) / endTime, 0.0, 1.0);
-                       }
-                   }
-                   return 0.0;
-               } else {
-                   // Regular time range
-                   if (time >= startTime && time <= endTime) {
-                       return clamp((time - startTime) / (endTime - startTime), 0.0, 1.0);
-                   }
-                   return 0.0;
-               }
-           }
+            // Calculate time of day factors for smooth transitions
+            void getTimeFactors(float worldTime, out float nightFactor, out float dawnFactor, 
+                               out float dayFactor, out float duskFactor, 
+                               out float starVisibility, out float sunVisibility, out float moonOpacity) {
+                // Key time points (in hours) - matching celestial.service.ts
+                float midnight = 0.0;
+                float dawnStart = 5.0;
+                float sunrise = 6.0;
+                float dawnEnd = 7.0;
+                float noon = 12.0;
+                float duskStart = 17.0;
+                float sunset = 18.0;
+                float duskEnd = 19.0;
+                
+                // Night factor
+                nightFactor = 0.0;
+                if (worldTime >= duskEnd || worldTime <= dawnStart) {
+                    if (worldTime >= duskEnd) {
+                        // Evening to midnight
+                        nightFactor = smootherstep(duskEnd, duskEnd + 2.0, worldTime);
+                    } else {
+                        // Midnight to dawn start
+                        nightFactor = smootherstep(dawnStart, dawnStart - 2.0, worldTime);
+                    }
+                }
+                
+                // Dawn factor
+                dawnFactor = 0.0;
+                if (worldTime >= dawnStart && worldTime <= dawnEnd) {
+                    if (worldTime < sunrise) {
+                        // Dawn Start to Sunrise (ramp up)
+                        dawnFactor = smootherstep(dawnStart, sunrise, worldTime);
+                    } else {
+                        // Sunrise to Dawn End (ramp down)
+                        dawnFactor = smootherstep(dawnEnd, sunrise, worldTime);
+                    }
+                }
+                
+                // Day factor
+                dayFactor = 0.0;
+                if (worldTime >= dawnEnd && worldTime <= duskStart) {
+                    float dayProgress = (worldTime - dawnEnd) / (duskStart - dawnEnd);
+                    
+                    // Smoother transition at edges of day
+                    if (dayProgress < 0.1) {
+                        dayFactor = smootherstep(0.0, 0.1, dayProgress);
+                    } else if (dayProgress > 0.9) {
+                        dayFactor = smootherstep(1.0, 0.9, dayProgress);
+                    } else {
+                        dayFactor = 1.0;
+                    }
+                }
+                
+                // Dusk factor
+                duskFactor = 0.0;
+                if (worldTime >= duskStart && worldTime <= duskEnd) {
+                    if (worldTime < sunset) {
+                        // Dusk Start to Sunset (ramp up)
+                        duskFactor = smootherstep(duskStart, sunset, worldTime);
+                    } else {
+                        // Sunset to Dusk End (ramp down)
+                        duskFactor = smootherstep(duskEnd, sunset, worldTime);
+                    }
+                }
+                
+                // Normalize factors
+                float totalFactor = nightFactor + dawnFactor + dayFactor + duskFactor;
+                if (totalFactor > 0.001) {
+                    nightFactor /= totalFactor;
+                    dawnFactor /= totalFactor;
+                    dayFactor /= totalFactor;
+                    duskFactor /= totalFactor;
+                } else {
+                    // Fallback
+                    dayFactor = 1.0;
+                }
+                
+                // Sun visibility
+                sunVisibility = 0.0;
+                if (worldTime >= sunrise && worldTime <= sunset) {
+                    sunVisibility = 1.0;
+                }
+                
+                // Moon visibility/opacity
+                moonOpacity = 0.0;
+                if (worldTime >= sunset && worldTime <= duskEnd) {
+                    // Sunset to dusk end: fade in
+                    moonOpacity = smootherstep(sunset, duskEnd, worldTime);
+                } else if (worldTime >= duskEnd || worldTime <= dawnStart) {
+                    // Fully visible during night
+                    moonOpacity = 1.0;
+                } else if (worldTime >= dawnStart && worldTime <= sunrise) {
+                    // Dawn start to sunrise: fade out
+                    moonOpacity = smootherstep(sunrise, dawnStart, worldTime);
+                }
+                
+                // Star visibility follows a similar pattern to moon opacity
+                starVisibility = 0.0;
+                if (worldTime >= duskEnd || worldTime <= dawnStart) {
+                    // Fully visible during night
+                    starVisibility = 1.0;
+                } else if (worldTime >= sunset && worldTime <= duskEnd) {
+                    // Sunset to dusk end: fade in
+                    starVisibility = smootherstep(sunset, duskEnd, worldTime);
+                } else if (worldTime >= dawnStart && worldTime <= sunrise) {
+                    // Dawn start to sunrise: fade out
+                    starVisibility = smootherstep(sunrise, dawnStart, worldTime);
+                }
+            }
             
-           // Smoothstep helper
-           float smoothstepCustom(float edge0, float edge1, float x) {
-               float t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
-               return t * t * (3.0 - 2.0 * t);
-           }
+            // Get scientifically accurate sky colors based on time of day
+            void getSkyColors(float worldTime, float viewHeight, 
+                              out vec3 zenithColor, out vec3 horizonColor) {
+                // Key time points
+                float midnight = 0.0;
+                float dawnStart = 5.0;
+                float sunrise = 6.0;
+                float dawnEnd = 7.0;
+                float noon = 12.0;
+                float duskStart = 17.0;
+                float sunset = 18.0;
+                float duskEnd = 19.0;
+                
+                // Physically accurate sky colors based on Rayleigh scattering and solar elevation
+                
+                // Night colors - deep blue to dark blue
+                vec3 nightZenith = vec3(0.015, 0.015, 0.04);    // Almost black with hint of blue
+                vec3 nightHorizon = vec3(0.04, 0.04, 0.08);     // Deep blue
+                
+                // Sunrise/dawn colors - from published atmospheric science research
+                vec3 sunriseZenith = vec3(0.12, 0.15, 0.32);    // Deepening blue with purple hints
+                vec3 sunriseHorizon = vec3(0.92, 0.58, 0.32);   // Golden orange
+                
+                // Day colors - based on clear sky spectra
+                vec3 dayZenith = vec3(0.18, 0.26, 0.48);        // Rich blue
+                vec3 dayHorizon = vec3(0.7, 0.8, 0.95);         // Pale blue-white
+                
+                // Sunset/dusk colors - more reds than dawn due to atmospheric scattering
+                vec3 sunsetZenith = vec3(0.15, 0.12, 0.25);     // Purple-blue
+                vec3 sunsetHorizon = vec3(0.9, 0.35, 0.15);     // Deep orange-red
+                
+                // Initialize colors
+                zenithColor = vec3(0.0);
+                horizonColor = vec3(0.0);
+                
+                // Morning transitions (midnight through dawn to day)
+                if (worldTime >= midnight && worldTime < dawnStart) {
+                    // Night - steady
+                    zenithColor = nightZenith;
+                    horizonColor = nightHorizon;
+                }
+                else if (worldTime >= dawnStart && worldTime < sunrise) {
+                    // Dawn start to sunrise: night → sunrise
+                    float t = smootherstep(dawnStart, sunrise, worldTime);
+                    zenithColor = mix(nightZenith, sunriseZenith, t);
+                    horizonColor = mix(nightHorizon, sunriseHorizon, t);
+                }
+                else if (worldTime >= sunrise && worldTime < dawnEnd) {
+                    // Sunrise to dawn end: sunrise → day
+                    float t = smootherstep(sunrise, dawnEnd, worldTime);
+                    zenithColor = mix(sunriseZenith, dayZenith, t);
+                    horizonColor = mix(sunriseHorizon, dayHorizon, t);
+                }
+                else if (worldTime >= dawnEnd && worldTime < duskStart) {
+                    // Full day - steady
+                    zenithColor = dayZenith;
+                    horizonColor = dayHorizon;
+                }
+                else if (worldTime >= duskStart && worldTime < sunset) {
+                    // Dusk start to sunset: day → sunset
+                    float t = smootherstep(duskStart, sunset, worldTime);
+                    zenithColor = mix(dayZenith, sunsetZenith, t);
+                    horizonColor = mix(dayHorizon, sunsetHorizon, t);
+                }
+                else if (worldTime >= sunset && worldTime < duskEnd) {
+                    // Sunset to dusk end: sunset → night
+                    float t = smootherstep(sunset, duskEnd, worldTime);
+                    zenithColor = mix(sunsetZenith, nightZenith, t);
+                    horizonColor = mix(sunsetHorizon, nightHorizon, t);
+                }
+                else {
+                    // Dusk end to midnight - steady night
+                    zenithColor = nightZenith;
+                    horizonColor = nightHorizon;
+                }
+            }
             
-           void main(void) {
-               // Get view direction
-               vec3 dir = normalize(vPosition);
+            void main(void) {
+                // Get view direction
+                vec3 dir = normalize(vPosition);
+                
+                // Sun and moon specifics
+                float sunDot = max(dot(dir, sunPosition), 0.0);
+                float moonDot = max(dot(dir, moonPosition), 0.0);
+                float sunHeight = sunPosition.y;  // -1 to 1
+                float moonHeight = moonPosition.y;  // -1 to 1
+                
+                // Normalized view direction height (0 at horizon, 1 at zenith)
+                float viewHeight = max(0.0, dir.y);
+                
+                // Calculate time factors
+                float nightFactor, dawnFactor, dayFactor, duskFactor;
+                float starVisibility, sunVisibility, moonOpacity;
+                getTimeFactors(iTime, nightFactor, dawnFactor, dayFactor, duskFactor, 
+                              starVisibility, sunVisibility, moonOpacity);
+                
+                // Get scientifically accurate zenith and horizon colors
+                vec3 zenithColor, horizonColor;
+                getSkyColors(iTime, viewHeight, zenithColor, horizonColor);
+                
+                // Blend between horizon and zenith based on view height
+                // More gradual transition near horizon for realism
+                float blendFactor;
+                if (viewHeight < 0.1) {
+                    // Near horizon: very gradual transition
+                    blendFactor = smootherstep(0.0, 0.1, viewHeight) * 0.3; 
+                } else {
+                    // Higher in sky: more direct transition
+                    blendFactor = 0.3 + smootherstep(0.1, 0.5, viewHeight) * 0.7;
+                }
+                
+                // Final sky color blending zenith and horizon
+                vec3 skyColor = mix(horizonColor, zenithColor, blendFactor);
+                
+                // Get stars - visible based on star visibility factor
+                vec3 starField = vec3(0.0);
+                if (starVisibility > 0.0 && viewHeight > 0.0) {
+                    starField = stars(dir, iTime) * starVisibility;
+                }
+                
+                // Add stars to night sky
+                skyColor += starField;
+                
+                // Very small, scientifically accurate sun
+                float sunSize = 0.0008; // Smaller, more realistic sun diameter
+                float sunDisc = smootherstep(0.9999 - sunSize, 0.9999, sunDot);
+                
+                // Sun glow varies with height and atmosphere
+                float sunGlowIntensity;
+                if (sunHeight <= 0.0) {
+                    // Below horizon - stronger glow
+                    sunGlowIntensity = 1.0;
+                } else if (sunHeight < 0.3) {
+                    // Low in sky - strong glow
+                    sunGlowIntensity = 1.0 - sunHeight * 2.0;
+                } else {
+                    // Higher in sky - less glow due to less atmosphere
+                    sunGlowIntensity = 0.4;
+                }
+                
+                float sunGlow = pow(sunDot, 180.0) * sunGlowIntensity;
+                float sunOuterGlow = pow(sunDot, 25.0) * sunGlowIntensity * 0.15;
+                
+                // Scientific sun colors based on atmospheric physics
+                vec3 sunColor = vec3(1.0);
+                
+                if (sunHeight <= 0.0) {
+                    // Below horizon (sunrise/sunset)
+                    sunColor = vec3(1.0, 0.4, 0.15); // Deep orange-red
+                } else if (sunHeight < 0.2) {
+                    // Low in sky
+                    float t = sunHeight / 0.2;
+                    sunColor = mix(
+                        vec3(1.0, 0.4, 0.15), // Deep orange-red
+                        vec3(1.0, 0.7, 0.3),  // Orange-yellow
+                        t
+                    );
+                } else {
+                    // Higher in sky
+                    float t = min(1.0, (sunHeight - 0.2) / 0.6);
+                    sunColor = mix(
+                        vec3(1.0, 0.7, 0.3),  // Orange-yellow
+                        vec3(1.0, 0.95, 0.8), // White-yellow
+                        t
+                    );
+                }
+                
+                // Add sun only when it should be visible
+                if (sunVisibility > 0.0) {
+                    // Sun disc
+                    skyColor += sunColor * sunDisc;
+                    
+                    // Inner and outer glow
+                    skyColor += sunColor * sunGlow;
+                    skyColor += mix(sunColor, vec3(1.0), 0.5) * sunOuterGlow;
+                }
+                
+                // Smaller, realistic moon
+                float moonSize = 0.0006; // Even smaller, realistic moon
+                float moonDisc = smootherstep(0.9999 - moonSize, 0.9999, moonDot);
+                
+                // Moon glow depends on moon phase (simplified)
+                float moonGlow = pow(moonDot, 250.0) * 0.3;
+                float moonOuterGlow = pow(moonDot, 40.0) * 0.06;
+                
+                // Add moon based on opacity
+                if (moonOpacity > 0.0) {
+                    // Light gray moon with subtle blue tint
+                    vec3 moonColor = vec3(0.9, 0.9, 0.95);
+                    
+                    // Moon disc with opacity factor
+                    skyColor += moonColor * moonDisc * moonOpacity;
+                    
+                    // Moon glow - very subtle
+                    skyColor += vec3(0.6, 0.7, 0.9) * moonGlow * moonOpacity;
+                    skyColor += vec3(0.3, 0.4, 0.6) * moonOuterGlow * moonOpacity;
+                }
+                
+                // Apply clouds when enabled
+                if (cloudiness > 0.0 && viewHeight > 0.0) {
+                    // Cloud pattern generation
+                    vec3 cloudCoord = vec3(dir.xz / (viewHeight + 0.1), iTime * 0.01);
+                    float cloudBase = noise(cloudCoord * 2.0);
+                    float cloudDetail = noise(cloudCoord * 8.0);
+                    
+                    // Natural cloud formation
+                    float cloudPattern = cloudBase * 0.7 + cloudDetail * 0.3;
+                    float clouds = smootherstep(1.0 - cloudiness * 0.8, 1.0 - cloudiness * 0.4, cloudPattern);
+                    
+                    // Cloud colors vary with time of day - physically correct lighting
+                    vec3 cloudDayColor = vec3(1.0, 1.0, 1.0);                      // Bright white
+                    vec3 cloudDawnColor = vec3(0.95, 0.65, 0.35) * 1.2;            // Golden-orange
+                    vec3 cloudNightColor = vec3(0.1, 0.1, 0.15);                   // Dark blue-gray
+                    vec3 cloudDuskColor = vec3(0.85, 0.45, 0.25) * 1.2;            // Deep orange-red
+                    
+                    // Blend cloud colors by time of day
+                    vec3 cloudColor = cloudDayColor * dayFactor +
+                                     cloudNightColor * nightFactor +
+                                     cloudDawnColor * dawnFactor +
+                                     cloudDuskColor * duskFactor;
+                    
+                    // Cloud ambient lighting (dimmer for clouds in shadow)
+                    vec3 cloudAmbient = mix(
+                        vec3(0.1, 0.1, 0.2), // Night ambient
+                        vec3(0.5, 0.5, 0.6), // Day ambient
+                        dayFactor + dawnFactor * 0.5 + duskFactor * 0.5
+                    );
+                    
+                    // Direct sun/moon lighting on clouds
+                    float sunContribution = max(0.0, dot(vec3(0.0, 1.0, 0.0), sunPosition)) * 0.7;
+                    float moonContribution = max(0.0, dot(vec3(0.0, 1.0, 0.0), moonPosition)) * 0.3 * moonOpacity;
+                    
+                    // Final cloud color with lighting
+                    vec3 cloudIllumination = cloudAmbient + cloudColor * (sunContribution + moonContribution);
+                    
+                    // Blend clouds with sky - more transparent near horizon
+                    float cloudOpacity = clouds * cloudiness * min(1.0, viewHeight * 2.0);
+                    skyColor = mix(skyColor, cloudIllumination, cloudOpacity);
+                }
+                
+                // Atmospheric haze near horizon - Rayleigh scattering simulation
+                if (viewHeight < 0.1) {
+                    // Add subtle haze that varies with time of day
+                    float hazeFactor = (1.0 - viewHeight * 10.0);
+                    vec3 hazeColor = horizonColor * 0.8; // Slightly dimmer than horizon color
+                    skyColor = mix(skyColor, hazeColor, hazeFactor * 0.4);
+                }
+                
+                // Tonemap for proper HDR handling and dynamic range
+                skyColor = skyColor / (skyColor + vec3(1.0)); // Simple Reinhard tonemapping
+                
+                // Apply subtle gamma correction for more realistic colors
+                skyColor = pow(skyColor, vec3(0.9));
             
-               // Sun and moon specifics
-               float sunDot = max(dot(dir, sunPosition), 0.0);
-               float moonDot = max(dot(dir, moonPosition), 0.0);
-               float sunHeight = sunPosition.y;  // -1 to 1
-               
-               // Calculate normalized time (0-24 hours)
-               float worldTime = iTime;
-               
-               // Time of day transitions - new strict time windows
-               // Night: 18:30-05:30, Dawn: 05:30-06:30, Day: 06:30-17:30, Dusk: 17:30-18:30
-               float nightStart = 18.5;
-               float nightEnd = 5.5;
-               float dawnStart = 5.5;
-               float dawnEnd = 6.5;
-               float dayStart = 6.5;
-               float dayEnd = 17.5;
-               float duskStart = 17.5;
-               float duskEnd = 18.5;
-               
-               // Calculate time factors with smooth transitions
-               float nightFactor = 0.0;
-               if (worldTime >= nightStart || worldTime <= nightEnd) {
-                   if (worldTime >= nightStart) {
-                       nightFactor = smoothstepCustom(nightStart, nightStart + 1.0, worldTime);
-                   } else {
-                       nightFactor = smoothstepCustom(nightEnd, nightEnd - 1.0, worldTime);
-                   }
-               }
-               
-               float dawnFactor = 0.0;
-               if (worldTime >= dawnStart && worldTime <= dawnEnd) {
-                   dawnFactor = smoothstepCustom(dawnStart, dawnEnd, worldTime);
-                   dawnFactor *= (1.0 - smoothstepCustom(dawnEnd - 0.5, dawnEnd, worldTime));
-               }
-               
-               float dayFactor = 0.0;
-               if (worldTime >= dayStart && worldTime <= dayEnd) {
-                   dayFactor = smoothstepCustom(dayStart, dayStart + 0.5, worldTime) * 
-                              smoothstepCustom(dayEnd, dayEnd - 0.5, worldTime);
-                   if (worldTime > dayStart + 0.5 && worldTime < dayEnd - 0.5) {
-                       dayFactor = 1.0;
-                   }
-               }
-               
-               float duskFactor = 0.0;
-               if (worldTime >= duskStart && worldTime <= duskEnd) {
-                   duskFactor = smoothstepCustom(duskStart, duskEnd, worldTime);
-                   duskFactor *= (1.0 - smoothstepCustom(duskEnd - 0.5, duskEnd, worldTime));
-               }
-               
-               // Normalize factors to ensure they sum to 1.0
-               float totalFactor = nightFactor + dawnFactor + dayFactor + duskFactor;
-               if (totalFactor > 0.0) {
-                   nightFactor /= totalFactor;
-                   dawnFactor /= totalFactor;
-                   dayFactor /= totalFactor;
-                   duskFactor /= totalFactor;
-               } else {
-                   // Default to day if no factor is calculated (fallback)
-                   dayFactor = 1.0;
-               }
-               
-               // Normalized view direction height (0 at horizon, 1 at zenith)
-               float viewHeight = max(0.0, dir.y);
-               
-               // Sky gradient height factor
-               float t = smoothstepCustom(0.0, 0.4, viewHeight); // Smoother transition near horizon
-               
-               // Generate physically-based sky colors
-               // Deep blue zenith to pale blue horizon during day
-               vec3 zenithDayColor = vec3(0.18, 0.26, 0.48); // Deeper blue 
-               vec3 horizonDayColor = vec3(0.7, 0.8, 0.95);  // Pale blue-white
-               
-               // Deep navy zenith to dark blue horizon at night
-               vec3 zenithNightColor = vec3(0.015, 0.015, 0.04); // Almost black with hint of blue
-               vec3 horizonNightColor = vec3(0.04, 0.04, 0.08);  // Very dark blue
-               
-               // Sunrise colors - deep blue to orange-gold
-               vec3 zenithDawnColor = vec3(0.1, 0.15, 0.3);    // Deep blue with purple tint
-               vec3 horizonDawnColor = vec3(0.9, 0.6, 0.35);   // Orange-gold
-               
-               // Sunset colors - mirror of dawn but with slightly deeper reds
-               vec3 zenithDuskColor = zenithDawnColor;          // Same as dawn
-               vec3 horizonDuskColor = vec3(0.85, 0.45, 0.25);  // Deep orange-red-gold
-               
-               // The height at which to blend colors changes based on time of day
-               // During sunrise/sunset, extend the horizon colors higher
-               float blendHeightDay = t;
-               float blendHeightDawn = mix(t, smoothstepCustom(0.0, 0.8, viewHeight), 0.7);
-               float blendHeightDusk = mix(t, smoothstepCustom(0.0, 0.8, viewHeight), 0.7);
-               float blendHeightNight = t;
-               
-               // Blend zenith and horizon colors with appropriate height factors
-               vec3 dayColor = mix(horizonDayColor, zenithDayColor, blendHeightDay);
-               vec3 nightColor = mix(horizonNightColor, zenithNightColor, blendHeightNight);
-               vec3 dawnColor = mix(horizonDawnColor, zenithDawnColor, blendHeightDawn);
-               vec3 duskColor = mix(horizonDuskColor, zenithDuskColor, blendHeightDusk);
-               
-               // Get stars, visible at night with more realistic twinkling
-               vec3 starField = vec3(0.0);
-               if (nightFactor > 0.0 && dir.y > 0.0) {
-                   // Stars appear gradually as it gets darker
-                   starField = stars(dir, iTime) * smoothstepCustom(0.0, 0.5, nightFactor);
-               }
-               
-               // Blend sky colors based on time of day - ensure smooth transitions
-               vec3 skyColor = vec3(0.0);
-               skyColor += nightColor * nightFactor;
-               skyColor += dayColor * dayFactor;
-               skyColor += dawnColor * dawnFactor;
-               skyColor += duskColor * duskFactor;
-               
-               // Add stars to night sky with proper fading during dawn/dusk
-               float starVisibility = nightFactor * (1.0 - dawnFactor * 0.8 - duskFactor * 0.8);
-               skyColor += starField * starVisibility;
-               
-               // Much smaller, realistic sun
-               float sunSize = 0.002; // Significantly smaller sun
-               float sunDisc = smoothstepCustom(0.9998 - sunSize, 0.9999, sunDot);
-               
-               // Sun glow should be larger than the sun itself, but still fairly concentrated
-               float sunGlow = pow(sunDot, 150.0) * (dayFactor + dawnFactor + duskFactor);
-               float sunOuterGlow = pow(sunDot, 20.0) * (dayFactor + dawnFactor + duskFactor) * 0.2;
-               
-               // Sun colors based on height - correct subtle transitions
-               vec3 sunColor = mix(
-                   vec3(1.0, 0.3, 0.0),  // Low sun (deep orange)
-                   mix(
-                       vec3(1.0, 0.6, 0.0),  // Rising sun (orange-yellow)
-                       vec3(1.0, 0.95, 0.8), // High sun (bright white-yellow)
-                       smoothstepCustom(0.1, 0.5, sunHeight)
-                   ),
-                   smoothstepCustom(-0.025, 0.1, sunHeight)
-               );
-               
-               // Add sun only when above/near horizon
-               if (sunHeight > -0.1) {
-                   // Sun disc with gradual intensity based on height
-                   skyColor += sunColor * sunDisc * mix(0.5, 1.0, smoothstepCustom(-0.1, 0.2, sunHeight));
-                   
-                   // Inner glow
-                   skyColor += sunColor * sunGlow;
-                   
-                   // Outer glow - less intense
-                   skyColor += mix(sunColor, vec3(1.0), 0.5) * sunOuterGlow;
-               }
-               
-               // Smaller, realistic moon
-               float moonSize = 0.0015; // Smaller moon
-               float moonDisc = smoothstepCustom(0.9998 - moonSize, 0.9999, moonDot);
-               
-               // Moon glow should be more subtle than sun
-               float moonGlow = pow(moonDot, 200.0) * nightFactor * 0.5;
-               float moonOuterGlow = pow(moonDot, 30.0) * nightFactor * 0.1;
-               
-               // Dim moon during dawn and dusk
-               float moonVisibility = nightFactor * (1.0 - dawnFactor * 0.8 - duskFactor * 0.8);
-               
-               // Add moon only when above horizon
-               if (moonPosition.y > -0.1) {
-                   // Light gray moon with subtle blue tint
-                   vec3 moonColor = vec3(0.9, 0.9, 0.95);
-                   
-                   // Moon disc with visibility factor
-                   skyColor += moonColor * moonDisc * moonVisibility;
-                   
-                   // Moon glow - very subtle
-                   skyColor += vec3(0.6, 0.7, 0.9) * moonGlow * moonVisibility;
-                   skyColor += vec3(0.3, 0.4, 0.6) * moonOuterGlow * moonVisibility;
-               }
-               
-               // Apply clouds when enabled
-               if (cloudiness > 0.0 && dir.y > 0.0) {
-                   // Improved cloud pattern
-                   vec3 cloudCoord = vec3(dir.xz / (dir.y + 0.1), iTime * 0.01);
-                   float cloudBase = noise(cloudCoord * 2.0);
-                   float cloudDetail = noise(cloudCoord * 8.0);
-                   
-                   // More natural cloud shapes
-                   float cloudPattern = cloudBase * 0.7 + cloudDetail * 0.3;
-                   
-                   // Apply cloudiness threshold with softer edges
-                   float clouds = smoothstepCustom(1.0 - cloudiness * 0.8, 1.0 - cloudiness * 0.4, cloudPattern);
-                   
-                   // Cloud color based on time of day - physical light scattering
-                   vec3 cloudDaylight = vec3(1.0, 1.0, 1.0);                      // Bright white day clouds
-                   vec3 cloudNightlight = vec3(0.1, 0.1, 0.15);                   // Dark night clouds
-                   vec3 cloudDawnlight = vec3(0.9, 0.6, 0.35) * 1.2;              // Dawn golden clouds
-                   vec3 cloudDusklight = vec3(0.85, 0.45, 0.25) * 1.2;            // Dusk orange-red clouds
-                   
-                   // Blend cloud colors by time of day
-                   vec3 cloudSunlight = vec3(0.0);
-                   cloudSunlight += cloudDaylight * dayFactor;
-                   cloudSunlight += cloudNightlight * nightFactor;
-                   cloudSunlight += cloudDawnlight * dawnFactor;
-                   cloudSunlight += cloudDusklight * duskFactor;
-                   
-                   vec3 cloudAmbient = mix(
-                       vec3(0.1, 0.1, 0.2), // Night ambient
-                       vec3(0.5, 0.5, 0.6), // Day ambient
-                       dayFactor + dawnFactor * 0.5 + duskFactor * 0.5
-                   );
-                   
-                   // Calculate light arriving at cloud
-                   float sunContribution = max(0.0, dot(vec3(0.0, 1.0, 0.0), sunPosition)) * 0.5 + 0.5;
-                   vec3 cloudIllumination = mix(cloudAmbient, cloudSunlight, sunContribution);
-                   
-                   // Final cloud color combines illumination with scattering
-                   vec3 cloudColor = mix(
-                       cloudIllumination * 0.3, // Darker base
-                       cloudIllumination,        // Brighter lit parts
-                       clouds * 0.7 + 0.3        // Vary by cloud density
-                   );
-                   
-                   // Blend clouds with sky
-                   skyColor = mix(skyColor, cloudColor, clouds * cloudiness);
-               }
-               
-               // Tonemap the final color for better dynamic range
-               skyColor = skyColor / (skyColor + vec3(1.0)); // Simple Reinhard tonemap
-               
-               // Apply a subtle gamma correction for more accurate colors
-               skyColor = pow(skyColor, vec3(0.9));
-            
-               gl_FragColor = vec4(skyColor, 1.0);
-           }
-`       ;
+                gl_FragColor = vec4(skyColor, 1.0);
+            }
+        `;
     }
 }
