@@ -84,7 +84,7 @@ export class MaterialService {
         material.useRoughnessFromMetallicTextureAlpha = true;
         material.ambientTexture = aoTex;
         material.ambientTextureStrength = 0.8;
-        material.bumpTexture.level = 100;
+        material.bumpTexture.level = 1;
         return material;
     }
 

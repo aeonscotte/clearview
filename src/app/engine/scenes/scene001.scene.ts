@@ -11,12 +11,12 @@ import { TimeService } from '../physics/time.service';
 // import '@babylonjs/core/Helpers/sceneHelpers';
 
 export class Scene001 extends BaseScene {
+    private timeService = new TimeService();
     private cameraService = new CameraService();
-    private lightService = new LightService();
     private terrainService = new TerrainService();
     private materialService = new MaterialService();
-    private timeService = new TimeService();
     private skyService = new SkyService(this.timeService);
+    private lightService = new LightService(this.timeService);
 
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         this.scene = new Scene(this.engine);
@@ -36,13 +36,8 @@ export class Scene001 extends BaseScene {
     }
 
     private setupLighting(): void {
-        this.lightService.createHemisphericLight(this.scene, {
-            name: 'Light001',
-            direction: new Vector3(0, 1, 0),
-            intensity: 10
-        });
-
-        this.scene.clearColor.set(0, 0, 0, 0); // optional: transparent background
+        this.lightService.createLights(this.scene);
+        this.scene.clearColor.set(0, 0, 0, 0);
     }
 
     private setupTerrain(): void {
@@ -56,6 +51,9 @@ export class Scene001 extends BaseScene {
             '/assets/materials/terrain/rocky-rugged-terrain_1/',
             3
         );
+
+        ground.receiveShadows = true;
+
     }
 
     private setupSky(): void {
@@ -68,6 +66,7 @@ export class Scene001 extends BaseScene {
         this.timeService.update();
         // console.log('World Time:', this.timeService.getWorldTime());
         this.skyService.update();
+        this.lightService.update();
     }
 
     dispose(): void {
