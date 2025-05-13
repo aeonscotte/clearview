@@ -11,6 +11,7 @@ import { SkyService } from '../world/sky.service';
 import { AtmosphereService } from '../world/atmosphere.service';
 import { WeatherService } from '../world/weather.service';
 import { CelestialService } from '../world/celestial.service';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 
 export class Scene001 extends BaseScene {
     private timeService = new TimeService();
@@ -67,6 +68,14 @@ export class Scene001 extends BaseScene {
         );
 
         ground.receiveShadows = true;
+
+        // Create a debug cube above the ground
+        const debugCube = MeshBuilder.CreateBox('debugCube', { size: 1 }, this.scene);
+        debugCube.position = new Vector3(0, 1, 0);
+        debugCube.material = ground.material;
+
+        // Enable shadow casting for the debug cube
+        this.lightService.addShadowCaster(debugCube);
         // this.lightService.addShadowCaster(ground);
     }
 
