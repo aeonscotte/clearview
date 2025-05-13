@@ -84,10 +84,6 @@ export class MaterialService {
         // Critical setting for two-sided normals!
         material.twoSidedLighting = true;
 
-        // Use these settings with OpenGL normal maps
-        material.invertNormalMapX = true;
-        material.invertNormalMapY = true;
-
         material.useParallax = true;
         material.useParallaxOcclusion = true;
         material.parallaxScaleBias = 0.015;
