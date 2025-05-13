@@ -79,7 +79,7 @@ export class Scene001 extends BaseScene {
     }
 
     private setupSky(): void {
-        this.celestialService.debugCelestialPositions();
+        // this.celestialService.debugCelestialPositions();
         this.skyService.createSky(this.scene);
         this.atmosphereService.setup(this.scene);
     }
