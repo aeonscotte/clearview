@@ -1,3 +1,4 @@
+// src/app/engine/world/atmosphere.service.ts
 import { Injectable } from '@angular/core';
 import { Scene, Color3 } from '@babylonjs/core';
 import { TimeService } from '../physics/time.service';
@@ -36,68 +37,104 @@ export class AtmosphereService {
         
         // Get celestial data for time-based calculations
         const celestialData = this.celestialService.getCelestialPositions();
-        const { dayFactor, nightFactor, dawnFactor, duskFactor, keyTimes } = celestialData;
+        const { 
+            dayFactor, 
+            nightFactor, 
+            dawnFactor, 
+            duskFactor, 
+            keyTimes,
+            sunHeight,
+            sunVisibility
+        } = celestialData;
         const worldTime = this.timeService.getWorldTime();
+        const { sunrise, sunset } = keyTimes;
+        
+        // Strict daytime check based on sun position
+        const isDaytime = sunHeight > 0 && worldTime >= sunrise && worldTime <= sunset;
         
         // Get sky colors from the light service to ensure consistency
         const skyColors = this.lightService.getSkyColors();
         
-        // Calculate target fog color based on sky colors
-        // Fog color is primarily influenced by the horizon color with some zenith influence
-        this.targetFogColor = Color3.Lerp(
-            skyColors.horizon, 
-            skyColors.zenith, 
-            0.15  // 15% zenith influence for slightly deeper fog color
-        );
+        // Calculate target fog color - primarily influenced by horizon with small zenith influence
+        if (isDaytime) {
+            // Daytime fog - more horizon influence
+            this.targetFogColor = Color3.Lerp(
+                skyColors.horizon, 
+                skyColors.zenith, 
+                0.12  // 12% zenith influence for daytime (slightly reduced)
+            );
+        } else {
+            // Nighttime fog - deeper blue color with more zenith influence
+            this.targetFogColor = Color3.Lerp(
+                skyColors.horizon, 
+                skyColors.zenith, 
+                0.25  // 25% zenith influence for nighttime (increased for deeper blues)
+            );
+            
+            // Add subtle blue shift to night fog (scientifically accurate)
+            const coolNightTint = new Color3(0.02, 0.03, 0.08); // Very subtle blue tint
+            this.targetFogColor = Color3.Lerp(
+                this.targetFogColor,
+                coolNightTint,
+                0.3 // 30% influence
+            );
+        }
         
-        // Calculate target fog density based on time of day
         // Scientific fog density variations:
         // - Higher in dawn/dusk due to temperature differentials and humidity
         // - Lower during mid-day due to heating and atmospheric mixing
         // - Moderate at night due to cooling and condensation
         
-        let baseFogDensity = 0.002; // Base fog density
+        let baseFogDensity = 0.0015; // Reduced base fog density
         
-        // Apply time-of-day multipliers
-        if (dawnFactor > 0.5) {
-            // Dawn has increased fog due to morning dew and temperature changes
-            baseFogDensity *= 1.8;
-        } else if (dayFactor > 0.5) {
-            // Daytime has reduced fog due to heating
-            baseFogDensity *= 0.6;
-        } else if (duskFactor > 0.5) {
-            // Dusk has increased fog due to cooling air meeting warmer ground
-            baseFogDensity *= 1.6;
-        } else if (nightFactor > 0.5) {
-            // Night has moderate fog
-            baseFogDensity *= 1.2;
+        // Apply time-of-day multipliers with more scientific accuracy
+        if (isDaytime) {
+            // Daytime has reduced fog due to heating and mixing
+            const noonFactor = 1.0 - Math.abs((worldTime - 12.0) / 6.0); // 1 at noon, 0 at sunrise/sunset
+            baseFogDensity *= 0.4 + (0.2 * (1.0 - noonFactor)); // Least fog at noon, more at sunrise/sunset
+        } else {
+            // Nighttime has moderate fog due to cooling
+            baseFogDensity *= 1.1;
+            
+            // Early night and pre-dawn have increased fog (temperature inversions)
+            if (worldTime > sunset && worldTime < sunset + 3) {
+                // Early evening fog peak - temperature dropping rapidly
+                const earlyNightFactor = 1.0 - ((worldTime - sunset) / 3.0);
+                baseFogDensity *= 1.0 + (earlyNightFactor * 0.7);
+            } else if (worldTime > 0 && worldTime < sunrise - 1) {
+                // Pre-dawn fog peak - coldest part of night
+                const preDawnFactor = 1.0 - ((sunrise - 1 - worldTime) / 4.0);
+                baseFogDensity *= 1.0 + (preDawnFactor * 0.9);
+            }
+        }
+        
+        // Special handling for dawn/dusk transitions
+        if (dawnFactor > 0) {
+            // Dawn fog - peaks just before sunrise (scientifically accurate)
+            const sunriseProximity = Math.max(0, 1 - Math.abs(worldTime - sunrise) / 1.0);
+            baseFogDensity *= 1.0 + (sunriseProximity * sunriseProximity * 0.9);
+        } else if (duskFactor > 0) {
+            // Dusk fog - peaks just after sunset (scientifically accurate)
+            const sunsetProximity = Math.max(0, 1 - Math.abs(worldTime - sunset) / 1.0);
+            baseFogDensity *= 1.0 + (sunsetProximity * sunsetProximity * 0.8);
         }
         
         // Additional subtle factors affecting fog density
-        
-        // Time-based modulation for sunrise/sunset peaks
-        const { sunrise, sunset } = keyTimes;
-        
-        // Enhanced fog near sunrise and sunset (atmospheric scattering)
-        const sunriseEffect = Math.max(0, 1 - Math.abs(worldTime - sunrise) / 1.0) * 0.003;
-        const sunsetEffect = Math.max(0, 1 - Math.abs(worldTime - sunset) / 1.0) * 0.003;
-        
-        // Combine all density factors
-        this.targetFogDensity = baseFogDensity + sunriseEffect + sunsetEffect;
-        
-        // Add subtle atmospheric movement for realism
-        const fogPulse = 0.0005 * Math.sin(elapsed * 0.3);
-        const fogDrift = 0.0003 * Math.cos(elapsed * 0.7);
-        this.targetFogDensity += fogPulse + fogDrift;
+        // Atmospheric movement and turbulence
+        const fogPulse = 0.0004 * Math.sin(elapsed * 0.3);
+        const fogDrift = 0.0002 * Math.cos(elapsed * 0.7);
+        this.targetFogDensity = baseFogDensity + fogPulse + fogDrift;
         
         // Apply altitude adjustment for camera height
         const camera = scene.activeCamera;
         const camY = camera?.position.y ?? 0;
-        const altitudeFactor = Math.exp(-camY / 150.0);
+        
+        // Scientific altitude fog falloff (exponential decrease with height)
+        const altitudeFactor = Math.exp(-camY / 175.0); // Slightly increased scale height for less rapid falloff
         this.targetFogDensity *= altitudeFactor;
         
         // Ensure reasonable limits for fog density
-        this.targetFogDensity = Math.max(0.0002, Math.min(0.01, this.targetFogDensity));
+        this.targetFogDensity = Math.max(0.0002, Math.min(0.008, this.targetFogDensity)); // Reduced upper limit
         
         // Smooth fog color transition
         this.currentFogColor = Color3.Lerp(
@@ -116,8 +153,6 @@ export class AtmosphereService {
         // Apply to scene
         scene.fogColor = this.currentFogColor;
         scene.fogDensity = this.currentFogDensity;
-        
-        // Note: ambientColor is now fully managed by the LightService
     }
     
     // Linear interpolation helper

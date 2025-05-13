@@ -71,10 +71,9 @@ export class LightService {
             moonIntensity,
             sunColor,
             moonColor,
-            keyTimes
+            keyTimes,
+            worldTime
         } = celestialData;
-        
-        const worldTime = this.timeService.getWorldTime();
         
         // Update light directions
         this.sunLight.direction = sunDir.scale(-1); // Lights point toward objects
@@ -111,7 +110,7 @@ export class LightService {
         this.updateColorTransitions();
         
         // Calculate ambient lighting from sky colors
-        this.updateAmbientLightFromSky();
+        this.updateAmbientLightFromSky(celestialData);
     }
     
     /**
@@ -210,45 +209,117 @@ export class LightService {
     }
     
     /**
-     * Update ambient light using sky colors
+     * Update ambient light using sky colors and celestial data
+     * Modified to ensure more scientifically accurate time-of-day lighting
      */
-    private updateAmbientLightFromSky(): void {
-        // The ambient light color is derived from a blend of zenith and horizon colors
-        // Scientifically, ambient light is a contribution from the entire sky dome
+    private updateAmbientLightFromSky(celestialData: any): void {
+        // Extract necessary data for ambient calculation
+        const { 
+            sunHeight, 
+            sunVisibility, 
+            moonIntensity, 
+            worldTime, 
+            keyTimes 
+        } = celestialData;
+        const { sunrise, sunset } = keyTimes;
         
-        // Calculate ambient color as a weighted mix of zenith and horizon
-        // Horizon has more influence as it covers more of the visible sky dome
-        const ambientColor = Color3.Lerp(
-            this.currentZenithColor, 
-            this.currentHorizonColor, 
-            0.7  // 70% horizon influence, 30% zenith
-        );
+        // Strict daytime check based on sun position rather than transition factors
+        const isDaytime = sunHeight > 0 && worldTime >= sunrise && worldTime <= sunset;
         
-        // Calculate ambient intensity based on color brightness
-        // Brighter skies provide more ambient illumination
-        const colorBrightness = (ambientColor.r + ambientColor.g + ambientColor.b) / 3;
+        // Calculate ambient color based on sun position, not transition factors
+        let ambientColor;
         
-        // Base ambient intensity with some adjustments for dawn/dusk
-        let ambientIntensity = 0.2 + colorBrightness * 0.4;
-        
-        // Slightly boost ambient during dawn/dusk to account for atmospheric scattering
-        const isDawnOrDusk = 
-            (this.targetHorizonColor.r > 0.5 && this.targetHorizonColor.g < 0.7) || 
-            (this.targetHorizonColor.r > 0.6 && this.targetHorizonColor.b < 0.3);
+        if (isDaytime) {
+            // Daytime - warmer ambient from sky color
+            ambientColor = Color3.Lerp(
+                this.currentZenithColor, 
+                this.currentHorizonColor, 
+                0.65  // 65% horizon influence, 35% zenith (slight adjustment)
+            );
             
-        if (isDawnOrDusk) {
-            ambientIntensity *= 1.4;  // 40% boost during dawn/dusk
+            // Make midday light whiter and more neutral
+            const noonFactor = 1.0 - Math.abs((worldTime - 12.0) / 6.0); // 1 at noon, 0 at sunrise/sunset
+            ambientColor = Color3.Lerp(
+                ambientColor,
+                new Color3(0.9, 0.9, 0.95), // Slightly off-white for realism
+                noonFactor * 0.4 // Stronger white influence at noon
+            );
+        } else {
+            // Nighttime - cooler ambient with blue tones
+            ambientColor = Color3.Lerp(
+                this.currentZenithColor,
+                this.currentHorizonColor,
+                0.5  // 50% horizon influence at night - more zenith influence
+            );
+            
+            // Add cool nighttime tint - scientific studies show night ambient has blue shift
+            const coolNightTint = new Color3(0.1, 0.15, 0.35); // Blue-dominant color
+            ambientColor = Color3.Lerp(
+                ambientColor,
+                coolNightTint,
+                0.5 // 50% cooling influence
+            );
+        }
+        
+        // Calculate ambient intensity based on sun position and time
+        let ambientIntensity;
+        
+        if (isDaytime) {
+            // Daytime intensity peaks at noon, reduced overall
+            const noonFactor = 1.0 - Math.abs((worldTime - 12.0) / 6.0);
+            ambientIntensity = 0.08 + noonFactor * 0.18; // 0.08 at sunrise/sunset, 0.26 at noon (reduced)
+        } else {
+            // Nighttime intensity based partly on moon and reduced overall
+            ambientIntensity = 0.04 + moonIntensity * 0.08; // 0.04-0.12 range at night (reduced)
+        }
+        
+        // Special case for dawn/dusk transitions - scientific accuracy for twilight
+        if ((worldTime >= sunrise && worldTime <= sunrise + 1) || 
+            (worldTime >= sunset - 1 && worldTime <= sunset)) {
+            
+            // Twilight period needs special handling for realistic transition
+            let transitionFactor;
+            
+            if (worldTime >= sunrise && worldTime <= sunrise + 1) {
+                // Dawn transition - from cool night to warm day
+                transitionFactor = (worldTime - sunrise) / 1.0; // 0 at sunrise, 1 at sunrise+1hr
+                
+                // Cooler until exactly sunrise, then gradually warm up
+                ambientColor = Color3.Lerp(
+                    ambientColor,
+                    Color3.Lerp(
+                        new Color3(0.15, 0.2, 0.4), // Cool pre-dawn blue
+                        new Color3(0.7, 0.6, 0.5),  // Warm post-sunrise
+                        transitionFactor * transitionFactor // Quadratic transition for more natural feel
+                    ),
+                    0.3 // Subtle influence
+                );
+            } else {
+                // Dusk transition - from warm day to cool night
+                transitionFactor = (sunset - worldTime) / 1.0; // 0 at sunset, 1 at sunset-1hr
+                
+                // Warm until exactly sunset, then rapidly cool down
+                ambientColor = Color3.Lerp(
+                    ambientColor,
+                    Color3.Lerp(
+                        new Color3(0.15, 0.2, 0.4), // Cool post-sunset blue
+                        new Color3(0.7, 0.5, 0.3),  // Warm pre-sunset
+                        transitionFactor * transitionFactor
+                    ),
+                    0.3
+                );
+            }
         }
         
         // Apply to the hemispheric light
         this.skyGlowLight.diffuse = ambientColor;
         
-        // Ground color is darker and tinted slightly toward the complementary color
-        // This simulates how the ground reflects less light and often with color bias
+        // Slightly darkened ground color with subtle color shift for scientific accuracy
+        // (ground surfaces reflect sky color but with reduced intensity)
         const groundTint = new Color3(
-            Math.max(0, ambientColor.r * 0.35 - 0.05),
-            Math.max(0, ambientColor.g * 0.35),
-            Math.max(0, ambientColor.b * 0.35 + 0.05)
+            Math.max(0, ambientColor.r * 0.3 - 0.03),
+            Math.max(0, ambientColor.g * 0.3),
+            Math.max(0, ambientColor.b * 0.3 + 0.04)
         );
         
         this.skyGlowLight.groundColor = groundTint;
