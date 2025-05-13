@@ -21,7 +21,7 @@ export class Scene001 extends BaseScene {
     private materialService = new MaterialService();
     private skyService = new SkyService(this.timeService, this.celestialService);
     private lightService = new LightService(this.timeService, this.celestialService);
-    private atmosphereService = new AtmosphereService(this.timeService, this.celestialService);
+    private atmosphereService = new AtmosphereService(this.timeService, this.celestialService, this.lightService);
     private weatherService = new WeatherService(this.timeService, this.atmosphereService);
 
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
@@ -95,9 +95,13 @@ export class Scene001 extends BaseScene {
         this.timeService.update();
         
         // Then update all sky-related services in the correct order
-        // The celestial service calculations happen internally when other services call it
-        this.skyService.update();
+        // 1. Celestial positions first (used by all other services)
+        // 2. Light service (calculates sky colors)
+        // 3. Sky service (uses light information)
+        // 4. Atmosphere service (uses light information for fog)
+        // 5. Weather service (last as it may modify fog)
         this.lightService.update();
+        this.skyService.update();
         this.atmosphereService.update(this.scene);
         this.weatherService.update(this.scene);
 
