@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+// src/app/engine/physics/time.service.ts
+import { inject, Injectable } from '@angular/core';
 
 @Injectable({
   providedIn: 'root'
@@ -7,6 +8,13 @@ export class TimeService {
     private startTime = performance.now();
     private lastFrameTime = performance.now();
     private elapsed = 0;
+    public readonly dayDurationInSeconds = 120; // Full day-night cycle in 2 minutes
+
+    // Allow setting initial time (e.g., start at midnight)
+    constructor() {
+        // Set initial time if needed
+        this.elapsed = (0 / 24) * this.dayDurationInSeconds;
+    }
 
     update(): void {
         const now = performance.now();
@@ -15,8 +23,9 @@ export class TimeService {
     }
 
     getWorldTime(): number {
-        // Simulate 24h day every 120 seconds
-        return (this.elapsed / 120.0) * 24.0;
+        // Convert elapsed seconds to hours (0-24)
+        const hoursPerSecond = 24 / this.dayDurationInSeconds;
+        return (this.elapsed * hoursPerSecond) % 24;
     }
 
     getDelta(): number {
@@ -26,5 +35,11 @@ export class TimeService {
     getElapsed(): number {
         return this.elapsed;
     }
+    
+    // Helper method to set time to a specific hour
+    setWorldTime(hour: number): void {
+        hour = hour % 24; // Ensure hour is in 0-24 range
+        this.elapsed = (hour / 24) * this.dayDurationInSeconds;
+        this.startTime = performance.now() - (this.elapsed * 1000);
+    }
 }
-

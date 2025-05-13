@@ -1,47 +1,85 @@
 import { Injectable } from '@angular/core';
 import { Scene, Color3 } from '@babylonjs/core';
 import { TimeService } from '../physics/time.service';
+import { CelestialService } from './celestial.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AtmosphereService {
-    constructor(private timeService: TimeService) {}
+    constructor(
+        private timeService: TimeService,
+        private celestialService: CelestialService
+    ) {}
 
     setup(scene: Scene): void {
         scene.fogMode = Scene.FOGMODE_EXP2;
         scene.fogDensity = 0.001;
-        scene.fogColor = new Color3(0.5, 0.5, 0.5); // Initial placeholder
-        scene.ambientColor = new Color3(0.2, 0.2, 0.2); // Initial placeholder
+        scene.fogColor = new Color3(0.04, 0.04, 0.08); // Initial midnight color
+        scene.ambientColor = new Color3(0.05, 0.05, 0.15); // Initial midnight ambient
+        
+        // Apply atmosphere for current time immediately
+        this.update(scene);
     }
 
     update(scene: Scene): void {
-        const worldTime = this.timeService.getWorldTime(); // 0 - 24
-        const t = (worldTime % 24) / 24; // Normalize to 0..1
         const elapsed = this.timeService.getElapsed();
-
-        // Simulate sun height
-        const sunFactor = Math.max(0.0, Math.sin(t * 2.0 * Math.PI));
-
-        // Interpolate fog color
-        const dayFog = new Color3(0.8, 0.9, 1.0);
-        const nightFog = new Color3(0.05, 0.05, 0.1);
-        scene.fogColor = Color3.Lerp(nightFog, dayFog, sunFactor);
-
-        // Ambient color interpolation
-        const dayAmbient = new Color3(0.6, 0.6, 0.6);
-        const nightAmbient = new Color3(0.1, 0.1, 0.2);
-        scene.ambientColor = Color3.Lerp(nightAmbient, dayAmbient, sunFactor);
-
-        // Fog pulse / drift effect
-        const fogPulse = 0.0025 * Math.sin(elapsed * 0.5);
-
-        // Fog density with altitude
+        
+        // Get celestial factors from the shared service
+        const { sunHeight, dayFactor, nightFactor, dawnFactor, duskFactor } = 
+            this.celestialService.getCelestialPositions();
+        
+        // Define colors for different times of day
+        const nightFog = new Color3(0.02, 0.02, 0.05);    // Deep blue-black
+        const dawnFog = new Color3(0.5, 0.3, 0.2);        // Warm orange-pink
+        const dayFog = new Color3(0.8, 0.9, 1.0);         // Light blue
+        const duskFog = new Color3(0.4, 0.2, 0.25);       // Deep orange-red
+        
+        // Ambient light colors
+        const nightAmbient = new Color3(0.05, 0.05, 0.15); // Very dark blue
+        const dawnAmbient = new Color3(0.3, 0.2, 0.2);     // Warm glow
+        const dayAmbient = new Color3(0.6, 0.6, 0.65);     // Neutral light
+        const duskAmbient = new Color3(0.3, 0.15, 0.1);    // Warm dusk glow
+        
+        // Blend fog colors based on time periods
+        scene.fogColor = new Color3(0, 0, 0);
+        scene.fogColor.addInPlace(nightFog.scale(nightFactor));
+        scene.fogColor.addInPlace(dayFog.scale(dayFactor));
+        scene.fogColor.addInPlace(dawnFog.scale(dawnFactor));
+        scene.fogColor.addInPlace(duskFog.scale(duskFactor));
+        
+        // Normalize fog color to avoid over-brightening
+        const totalWeight = Math.min(1.0, nightFactor + dayFactor + dawnFactor * 0.8 + duskFactor * 0.8);
+        if (totalWeight > 0) {
+            scene.fogColor.scaleInPlace(1.0 / totalWeight);
+        }
+        
+        // Blend ambient colors similarly
+        scene.ambientColor = new Color3(0, 0, 0);
+        scene.ambientColor.addInPlace(nightAmbient.scale(nightFactor));
+        scene.ambientColor.addInPlace(dayAmbient.scale(dayFactor));
+        scene.ambientColor.addInPlace(dawnAmbient.scale(dawnFactor));
+        scene.ambientColor.addInPlace(duskAmbient.scale(duskFactor));
+        
+        // Normalize ambient color
+        if (totalWeight > 0) {
+            scene.ambientColor.scaleInPlace(1.0 / totalWeight);
+        }
+        
+        // Subtle fog movement effect
+        const fogPulse = 0.0005 * Math.sin(elapsed * 0.3);
+        const fogDrift = 0.0003 * Math.cos(elapsed * 0.7);
+        
+        // Fog density changes with altitude and time of day
         const camera = scene.activeCamera;
         const camY = camera?.position.y ?? 0;
-        const altitudeFactor = Math.exp(-camY / 100.0);
-
-        const baseFog = 0.02 - (sunFactor * 0.012);
-        scene.fogDensity = Math.max(0.0005, (baseFog + fogPulse) * altitudeFactor);
+        const altitudeFactor = Math.exp(-camY / 150.0);
+        
+        // More fog at dawn/dusk, slightly more at night
+        const duskDawnFactor = Math.max(dawnFactor, duskFactor);
+        const baseFog = 0.005 + nightFactor * 0.003 + duskDawnFactor * 0.01 - dayFactor * 0.002;
+        
+        // Final fog density calculation
+        scene.fogDensity = Math.max(0.0002, (baseFog + fogPulse + fogDrift) * altitudeFactor);
     }
 }
