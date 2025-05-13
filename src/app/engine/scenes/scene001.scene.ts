@@ -69,14 +69,13 @@ export class Scene001 extends BaseScene {
 
         ground.receiveShadows = true;
 
-        // Create a debug cube above the ground
-        const debugCube = MeshBuilder.CreateBox('debugCube', { size: 1 }, this.scene);
-        debugCube.position = new Vector3(0, 1, 0);
-        debugCube.material = ground.material;
+        // Create a debug sphere above the ground
+        const debugSphere = MeshBuilder.CreateSphere('debugSphere', { diameter: 1 }, this.scene);
+        debugSphere.position = new Vector3(0, 1, 0);
+        debugSphere.material = ground.material;
 
-        // Enable shadow casting for the debug cube
-        this.lightService.addShadowCaster(debugCube);
-        // this.lightService.addShadowCaster(ground);
+        // Enable shadow casting for the debug sphere
+        this.lightService.addShadowCaster(debugSphere);
     }
 
     private setupSky(): void {
