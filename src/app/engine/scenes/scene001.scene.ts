@@ -2,13 +2,13 @@
 import { BaseScene } from '../base/scene';
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { TimeService } from '../physics/time.service';
 import { CameraService } from '../player/camera.service';
 import { LightService } from '../world/light.service';
 import { TerrainService } from '../world/terrain.service';
 import { MaterialService } from '../material/material.service';
 import { SkyService } from '../world/sky.service';
-import { TimeService } from '../physics/time.service';
-// import '@babylonjs/core/Helpers/sceneHelpers';
+import { AtmosphereService } from '../world/atmosphere.service';
 
 export class Scene001 extends BaseScene {
     private timeService = new TimeService();
@@ -17,6 +17,7 @@ export class Scene001 extends BaseScene {
     private materialService = new MaterialService();
     private skyService = new SkyService(this.timeService);
     private lightService = new LightService(this.timeService);
+    private atmosphereService = new AtmosphereService(this.timeService);
 
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         this.scene = new Scene(this.engine);
@@ -58,6 +59,7 @@ export class Scene001 extends BaseScene {
 
     private setupSky(): void {
         this.skyService.createSky(this.scene);
+        this.atmosphereService.setup(this.scene);
     }
 
 
@@ -67,6 +69,7 @@ export class Scene001 extends BaseScene {
         // console.log('World Time:', this.timeService.getWorldTime());
         this.skyService.update();
         this.lightService.update();
+        this.atmosphereService.update(this.scene);
     }
 
     dispose(): void {
