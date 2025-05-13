@@ -2,7 +2,7 @@
 
 # Usage function
 usage() {
-  echo "Usage: $0 <material-name> [--use-ogl]"
+  echo "Usage: $0 <material-name>"
   exit 1
 }
 
@@ -12,11 +12,6 @@ if [ -z "$1" ]; then
 fi
 
 MATERIAL_NAME="$1"
-USE_OGL=false
-
-if [ "$2" == "--use-ogl" ]; then
-  USE_OGL=true
-fi
 
 SRC_DIR="/Users/martinscotte/Downloads/$MATERIAL_NAME"
 DEST_DIR="/Users/martinscotte/code/clearview/public/assets/materials/terrain/$MATERIAL_NAME"
@@ -37,6 +32,7 @@ AO_SRC="$SRC_DIR/${MATERIAL_NAME}_ao.png"
 
 # Temp files
 TEMP_NORMAL="$DEST_DIR/_temp_normal.png"
+TEMP_NORMAL_ROTATED="$DEST_DIR/_temp_normal_rotated.png"
 TEMP_HEIGHT_GRAY="$DEST_DIR/_temp_height_gray.png"
 TEMP_METAL_GRAY="$DEST_DIR/_temp_metallic_gray.png"
 TEMP_ROUGH_GRAY="$DEST_DIR/_temp_roughness_gray.png"
@@ -54,23 +50,22 @@ for FILE in "${REQUIRED_FILES[@]}"; do
 done
 
 echo "🔄 Processing material: $MATERIAL_NAME"
-echo "🌐 Normal map mode: $([ "$USE_OGL" = true ] && echo "OpenGL" || echo "DirectX")"
+echo "🌐 Using OpenGL normal maps with 180° rotation"
 
-# ==== Step 1: Use normal map (flip green unless OGL mode is on) ====
-if [ "$USE_OGL" = true ]; then
-  cp "$NORMAL_OGL" "$TEMP_NORMAL"
-else
-  magick "$NORMAL_OGL" -channel G -negate +channel "$TEMP_NORMAL"
-fi
+# ==== Step 1: Use OpenGL normal map with 180° rotation ====
+cp "$NORMAL_OGL" "$TEMP_NORMAL"
+# Rotate normal map 180 degrees
+magick "$TEMP_NORMAL" -rotate 180 "$TEMP_NORMAL_ROTATED"
+echo "✅ Normal map rotated 180° to fix orientation"
 
 # ==== Step 2: Grayscale height map ====
 magick "$HEIGHT" -colorspace Gray -depth 8 "$TEMP_HEIGHT_GRAY"
 
-# ==== Step 3: Combine normal RGB + height A => normalHeight.png ====
-magick "$TEMP_NORMAL" "$TEMP_HEIGHT_GRAY" \
+# ==== Step 3: Combine rotated normal RGB + height A => normalHeight.png ====
+magick "$TEMP_NORMAL_ROTATED" "$TEMP_HEIGHT_GRAY" \
   -alpha off -compose CopyOpacity -composite \
   "$OUT_NORMALHEIGHT"
-echo "✅ normalHeight.png created"
+echo "✅ normalHeight.png created with rotated normal map"
 
 # ==== Step 4: Prepare metal and rough maps ====
 magick "$METALLIC" -colorspace Gray "$TEMP_METAL_GRAY"
@@ -90,6 +85,6 @@ cp "$ALBEDO_SRC" "$OUT_ALBEDO" && echo "✅ albedo.png copied"
 cp "$AO_SRC" "$OUT_AO" && echo "✅ ao.png copied"
 
 # ==== Cleanup ====
-rm "$TEMP_NORMAL" "$TEMP_HEIGHT_GRAY" "$TEMP_METAL_GRAY" "$TEMP_ROUGH_GRAY"
+rm "$TEMP_NORMAL" "$TEMP_NORMAL_ROTATED" "$TEMP_HEIGHT_GRAY" "$TEMP_METAL_GRAY" "$TEMP_ROUGH_GRAY"
 
 echo "🎉 All files processed successfully into: $DEST_DIR"

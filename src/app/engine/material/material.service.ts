@@ -77,6 +77,17 @@ export class MaterialService {
 
         material.albedoTexture = albedoTex;
         material.bumpTexture = normHeightTex;
+
+        // Enable two-sided rendering
+        material.backFaceCulling = false;
+
+        // Critical setting for two-sided normals!
+        material.twoSidedLighting = true;
+
+        // Use these settings with OpenGL normal maps
+        material.invertNormalMapX = true;
+        material.invertNormalMapY = true;
+
         material.useParallax = true;
         material.useParallaxOcclusion = true;
         material.parallaxScaleBias = 0.015;
@@ -84,10 +95,8 @@ export class MaterialService {
         material.useRoughnessFromMetallicTextureAlpha = true;
         material.ambientTexture = aoTex;
         material.ambientTextureStrength = 0.8;
-        material.bumpTexture.level = 0.8;
-        material.invertNormalMapX = true; // Try toggling this
-        material.invertNormalMapY = true; // Or try toggling this
+        material.bumpTexture.level = 1.0;
+
         return material;
     }
-
 }
