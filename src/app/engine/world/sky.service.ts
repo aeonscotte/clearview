@@ -38,13 +38,13 @@ export class SkyService {
         this.skyDome.isPickable = false; // Can't be interacted with
         this.skyDome.freezeWorldMatrix(); // Performance optimization
 
-        // Create the shader material
+        // Create the shader material with new starRotation uniform
         this.skyMaterial = new ShaderMaterial("skyShader", scene, {
             vertex: "enhancedSky",
             fragment: "enhancedSky"
         }, {
             attributes: ["position", "normal"],
-            uniforms: ["worldViewProjection", "sunPosition", "moonPosition", "iTime", "cloudiness"]
+            uniforms: ["worldViewProjection", "sunPosition", "moonPosition", "iTime", "starRotation", "cloudiness"]
         });
 
         // Make sure the material can be seen from inside the sphere
@@ -52,9 +52,12 @@ export class SkyService {
         
         // Set initial values
         const { sunDir, moonDir } = this.celestialService.getCelestialPositions();
+        const continuousRotation = this.timeService.getContinuousRotation();
+        
         this.skyMaterial.setVector3("sunPosition", sunDir);
         this.skyMaterial.setVector3("moonPosition", moonDir);
         this.skyMaterial.setFloat("iTime", this.timeService.getWorldTime());
+        this.skyMaterial.setFloat("starRotation", continuousRotation);
         this.skyMaterial.setFloat("cloudiness", 0.0);
         
         this.skyDome.material = this.skyMaterial;
@@ -70,10 +73,14 @@ export class SkyService {
         const { sunDir, moonDir } = this.celestialService.getCelestialPositions();
         const worldTime = this.timeService.getWorldTime();
         
+        // Get continuous rotation for stars - prevents midnight reset
+        const continuousRotation = this.timeService.getContinuousRotation();
+        
         // Update sun/moon positions - these are the key synchronization points
         this.skyMaterial.setVector3("sunPosition", sunDir);
         this.skyMaterial.setVector3("moonPosition", moonDir);
         this.skyMaterial.setFloat("iTime", worldTime);
+        this.skyMaterial.setFloat("starRotation", continuousRotation);
         
         // Update cloudiness based on weather
         if (this.weatherService) {
@@ -135,6 +142,7 @@ export class SkyService {
             uniform vec3 sunPosition;   // Sun direction vector
             uniform vec3 moonPosition;  // Moon direction vector
             uniform float iTime;        // World time in hours (0-24)
+            uniform float starRotation; // Continuous rotation for stars (doesn't reset at midnight)
             uniform float cloudiness;   // Cloud coverage (0-1)
             varying vec3 vPosition;
             varying vec3 vNormal;
@@ -172,12 +180,12 @@ export class SkyService {
                 return n;
             }
             
-            // Realistic star field with subtle twinkling
-            vec3 stars(vec3 dir, float time) {
+            // Realistic star field with subtle twinkling - modified to use continuous rotation
+            vec3 stars(vec3 dir, float time, float rotation) {
                 vec3 starColor = vec3(0.0);
                 
-                // Rotate stars slowly with Earth's rotation
-                float angle = time * 0.1;
+                // Use continuous rotation instead of time-based rotation that resets at midnight
+                float angle = rotation; // This value never resets
                 float c = cos(angle);
                 float s = sin(angle);
                 vec3 rotatedDir = vec3(
@@ -459,10 +467,10 @@ export class SkyService {
                 // Final sky color blending zenith and horizon
                 vec3 skyColor = mix(horizonColor, zenithColor, blendFactor);
                 
-                // Get stars - visible based on star visibility factor
+                // Get stars - visible based on star visibility factor - NOW USING CONTINUOUS ROTATION
                 vec3 starField = vec3(0.0);
                 if (starVisibility > 0.0 && viewHeight > 0.0) {
-                    starField = stars(dir, iTime) * starVisibility;
+                    starField = stars(dir, iTime, starRotation) * starVisibility;
                 }
                 
                 // Add stars to night sky
