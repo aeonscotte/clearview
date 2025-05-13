@@ -105,7 +105,7 @@ export class Scene001 extends BaseScene {
         this.weatherService.update(this.scene);
 
         // Debugging celestial positions
-        console.log(this.timeService.getWorldTime().toFixed(2), 'h');
+        // console.log(this.timeService.getWorldTime().toFixed(2), 'h');
        
     }
 
