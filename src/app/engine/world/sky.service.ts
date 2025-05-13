@@ -322,8 +322,17 @@ export class SkyService {
                 
                 // Sun visibility
                 sunVisibility = 0.0;
-                if (worldTime >= sunrise && worldTime <= sunset) {
-                    sunVisibility = 1.0;
+                if (worldTime >= sunrise - 0.2 && worldTime <= sunset + 0.2) {
+                    if (worldTime < sunrise) {
+                        // Just before sunrise: fade in (0 to 1 over 0.2 hours)
+                        sunVisibility = smootherstep(sunrise - 0.2, sunrise, worldTime);
+                    } else if (worldTime > sunset) {
+                        // Just after sunset: fade out (1 to 0 over 0.2 hours)
+                        sunVisibility = smootherstep(sunset + 0.2, sunset, worldTime);
+                    } else {
+                        // Fully visible during day
+                        sunVisibility = 1.0;
+                    }
                 }
                 
                 // Moon visibility/opacity
@@ -522,12 +531,12 @@ export class SkyService {
                 
                 // Add sun only when it should be visible
                 if (sunVisibility > 0.0) {
-                    // Sun disc
-                    skyColor += sunColor * sunDisc;
+                    // Sun disc with opacity based on visibility factor
+                    skyColor += sunColor * sunDisc * sunVisibility;
                     
-                    // Inner and outer glow
-                    skyColor += sunColor * sunGlow;
-                    skyColor += mix(sunColor, vec3(1.0), 0.5) * sunOuterGlow;
+                    // Inner and outer glow with visibility factor
+                    skyColor += sunColor * sunGlow * sunVisibility;
+                    skyColor += mix(sunColor, vec3(1.0), 0.5) * sunOuterGlow * sunVisibility;
                 }
                 
                 // Dramatically smaller moon - tiny point of light
