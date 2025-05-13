@@ -32,8 +32,9 @@ export class AtmosphereService {
         const fogColor = Color3.Lerp(nightFog, dayFog, sunFactor);
         scene.fogColor = fogColor;
 
-        // Adjust fog density slightly
-        scene.fogDensity = 0.01 - (sunFactor * 0.012); // Thinner fog in daylight
+        // Add pulsing effect (slow sine wave for breathing)
+        const fogPulse = 0.005 * Math.sin(this.timeService.getElapsed() * 0.5);
+        scene.fogDensity = 0.02 - (sunFactor * 0.012) + fogPulse;
 
         // Ambient light color based on sun/moon blend
         const dayAmbient = new Color3(0.6, 0.6, 0.6);
