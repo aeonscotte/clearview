@@ -210,7 +210,8 @@ export class LightService {
     
     /**
      * Update ambient light using sky colors and celestial data
-     * Modified to ensure more scientifically accurate time-of-day lighting
+     * Modified to ensure more scientifically accurate time-of-day lighting with warm periods
+     * during sunrise to dawn end and dusk start to sunset
      */
     private updateAmbientLightFromSky(celestialData: any): void {
         // Extract necessary data for ambient calculation
@@ -221,37 +222,57 @@ export class LightService {
             worldTime, 
             keyTimes 
         } = celestialData;
-        const { sunrise, sunset } = keyTimes;
+        const { sunrise, sunset, dawnEnd, duskStart } = keyTimes;
         
-        // Strict daytime check based on sun position rather than transition factors
-        const isDaytime = sunHeight > 0 && worldTime >= sunrise && worldTime <= sunset;
+        // Determine the time period more precisely
+        const isMorningWarmPeriod = worldTime >= sunrise && worldTime <= dawnEnd;
+        const isEveningWarmPeriod = worldTime >= duskStart && worldTime <= sunset;
+        const isNighttime = worldTime > sunset || worldTime < sunrise;
+        const isMidday = worldTime > dawnEnd && worldTime < duskStart;
         
-        // Calculate ambient color based on sun position, not transition factors
-        let ambientColor;
+        // Base ambient color using sky colors
+        let ambientColor = Color3.Lerp(
+            this.currentZenithColor, 
+            this.currentHorizonColor, 
+            isNighttime ? 0.5 : 0.65  // More zenith influence at night
+        );
         
-        if (isDaytime) {
-            // Daytime - warmer ambient from sky color
-            ambientColor = Color3.Lerp(
-                this.currentZenithColor, 
-                this.currentHorizonColor, 
-                0.65  // 65% horizon influence, 35% zenith (slight adjustment)
-            );
+        // Now apply specific coloring for each time period
+        if (isMorningWarmPeriod) {
+            // Warm sunrise golden glow (sunrise to dawn end)
+            const warmSunriseColor = new Color3(0.75, 0.6, 0.43); // Warm golden color
             
-            // Make midday light whiter and more neutral
-            const noonFactor = 1.0 - Math.abs((worldTime - 12.0) / 6.0); // 1 at noon, 0 at sunrise/sunset
+            // Smoothly ramp up the warmth as we get closer to dawn end
+            const warmthFactor = this.smootherstep(sunrise, sunrise + 0.5, worldTime);
+            ambientColor = Color3.Lerp(
+                ambientColor,
+                warmSunriseColor,
+                warmthFactor * 0.6  // 60% influence of the warm color
+            );
+        } 
+        else if (isEveningWarmPeriod) {
+            // Warm sunset amber glow (dusk start to sunset)
+            const warmSunsetColor = new Color3(0.7, 0.45, 0.3); // Warm amber/orange color
+            
+            // Smoothly ramp up the warmth as we get closer to sunset
+            const warmthFactor = this.smootherstep(duskStart, sunset - 0.5, worldTime);
+            ambientColor = Color3.Lerp(
+                ambientColor,
+                warmSunsetColor, 
+                warmthFactor * 0.6  // 60% influence of the warm color
+            );
+        }
+        else if (isMidday) {
+            // Midday - whiter, more neutral light
+            const noonFactor = 1.0 - Math.abs((worldTime - 12.0) / 6.0); // 1 at noon, 0 at edges
             ambientColor = Color3.Lerp(
                 ambientColor,
                 new Color3(0.9, 0.9, 0.95), // Slightly off-white for realism
-                noonFactor * 0.4 // Stronger white influence at noon
+                noonFactor * 0.45 // Stronger white influence at noon
             );
-        } else {
+        }
+        else if (isNighttime) {
             // Nighttime - cooler ambient with blue tones
-            ambientColor = Color3.Lerp(
-                this.currentZenithColor,
-                this.currentHorizonColor,
-                0.5  // 50% horizon influence at night - more zenith influence
-            );
-            
             // Add cool nighttime tint - scientific studies show night ambient has blue shift
             const coolNightTint = new Color3(0.1, 0.15, 0.35); // Blue-dominant color
             ambientColor = Color3.Lerp(
@@ -261,54 +282,82 @@ export class LightService {
             );
         }
         
-        // Calculate ambient intensity based on sun position and time
+        // Calculate ambient intensity based on time period
         let ambientIntensity;
         
-        if (isDaytime) {
-            // Daytime intensity peaks at noon, reduced overall
-            const noonFactor = 1.0 - Math.abs((worldTime - 12.0) / 6.0);
-            ambientIntensity = 0.08 + noonFactor * 0.18; // 0.08 at sunrise/sunset, 0.26 at noon (reduced)
-        } else {
+        if (isNighttime) {
             // Nighttime intensity based partly on moon and reduced overall
-            ambientIntensity = 0.04 + moonIntensity * 0.08; // 0.04-0.12 range at night (reduced)
+            ambientIntensity = 0.03 + moonIntensity * 0.08; // 0.03-0.11 range at night (slightly reduced)
+        } 
+        else if (isMorningWarmPeriod || isEveningWarmPeriod) {
+            // Golden/Magic hour slightly boosted intensity
+            ambientIntensity = 0.12; // Fixed moderate intensity during golden hours
+        }
+        else {
+            // Midday intensity peaks at noon, reduced overall
+            const noonFactor = 1.0 - Math.abs((worldTime - 12.0) / 6.0);
+            ambientIntensity = 0.08 + noonFactor * 0.15; // 0.08 at edges, 0.23 at noon (reduced)
         }
         
-        // Special case for dawn/dusk transitions - scientific accuracy for twilight
-        if ((worldTime >= sunrise && worldTime <= sunrise + 1) || 
-            (worldTime >= sunset - 1 && worldTime <= sunset)) {
+        // Extra smooth transitions at critical boundary points to prevent stutters
+        // Specifically, handle sunrise transition with extra care
+        if (Math.abs(worldTime - sunrise) < 0.1) {
+            // Very close to sunrise - create ultra smooth transition
+            const microTransition = (worldTime - (sunrise - 0.1)) / 0.2; // 0 to 1 over 0.2 hour window
+            const smoothFactor = microTransition * microTransition * (3.0 - 2.0 * microTransition); // Smoothstep
             
-            // Twilight period needs special handling for realistic transition
-            let transitionFactor;
+            // Blend between night and sunrise colors
+            const nightColor = Color3.Lerp(
+                this.currentZenithColor,
+                this.currentHorizonColor,
+                0.5
+            );
+            const nightTint = new Color3(0.1, 0.15, 0.35);
+            const coolNightAmbient = Color3.Lerp(nightColor, nightTint, 0.5);
             
-            if (worldTime >= sunrise && worldTime <= sunrise + 1) {
-                // Dawn transition - from cool night to warm day
-                transitionFactor = (worldTime - sunrise) / 1.0; // 0 at sunrise, 1 at sunrise+1hr
-                
-                // Cooler until exactly sunrise, then gradually warm up
-                ambientColor = Color3.Lerp(
-                    ambientColor,
-                    Color3.Lerp(
-                        new Color3(0.15, 0.2, 0.4), // Cool pre-dawn blue
-                        new Color3(0.7, 0.6, 0.5),  // Warm post-sunrise
-                        transitionFactor * transitionFactor // Quadratic transition for more natural feel
-                    ),
-                    0.3 // Subtle influence
-                );
-            } else {
-                // Dusk transition - from warm day to cool night
-                transitionFactor = (sunset - worldTime) / 1.0; // 0 at sunset, 1 at sunset-1hr
-                
-                // Warm until exactly sunset, then rapidly cool down
-                ambientColor = Color3.Lerp(
-                    ambientColor,
-                    Color3.Lerp(
-                        new Color3(0.15, 0.2, 0.4), // Cool post-sunset blue
-                        new Color3(0.7, 0.5, 0.3),  // Warm pre-sunset
-                        transitionFactor * transitionFactor
-                    ),
-                    0.3
-                );
-            }
+            const warmSunriseColor = new Color3(0.75, 0.6, 0.43);
+            const warmMorningAmbient = Color3.Lerp(ambientColor, warmSunriseColor, 0.3);
+            
+            // Ultra smooth blend at this critical point
+            ambientColor = Color3.Lerp(
+                coolNightAmbient,
+                warmMorningAmbient,
+                smoothFactor
+            );
+            
+            // Also smooth intensity
+            const nightIntensity = 0.03 + moonIntensity * 0.08;
+            ambientIntensity = this.lerp(nightIntensity, 0.12, smoothFactor);
+        }
+        
+        // Same careful handling at sunset
+        if (Math.abs(worldTime - sunset) < 0.1) {
+            // Very close to sunset - create ultra smooth transition
+            const microTransition = (sunset + 0.1 - worldTime) / 0.2; // 0 to 1 over 0.2 hour window
+            const smoothFactor = microTransition * microTransition * (3.0 - 2.0 * microTransition); // Smoothstep
+            
+            // Blend between evening and night colors
+            const warmSunsetColor = new Color3(0.7, 0.45, 0.3);
+            const warmEveningAmbient = Color3.Lerp(ambientColor, warmSunsetColor, 0.4);
+            
+            const nightColor = Color3.Lerp(
+                this.currentZenithColor,
+                this.currentHorizonColor,
+                0.5
+            );
+            const nightTint = new Color3(0.1, 0.15, 0.35);
+            const coolNightAmbient = Color3.Lerp(nightColor, nightTint, 0.5);
+            
+            // Ultra smooth blend at this critical point
+            ambientColor = Color3.Lerp(
+                coolNightAmbient,
+                warmEveningAmbient,
+                smoothFactor
+            );
+            
+            // Also smooth intensity
+            const nightIntensity = 0.03 + moonIntensity * 0.08;
+            ambientIntensity = this.lerp(nightIntensity, 0.12, smoothFactor);
         }
         
         // Apply to the hemispheric light
@@ -324,6 +373,11 @@ export class LightService {
         
         this.skyGlowLight.groundColor = groundTint;
         this.skyGlowLight.intensity = ambientIntensity;
+    }
+    
+    // Linear interpolation helper
+    private lerp(a: number, b: number, t: number): number {
+        return a + t * (b - a);
     }
     
     // Enhanced smoothstep for smoother transitions
