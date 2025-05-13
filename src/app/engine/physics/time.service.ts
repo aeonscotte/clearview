@@ -8,7 +8,7 @@ export class TimeService {
     private startTime = performance.now();
     private lastFrameTime = performance.now();
     private elapsed = 0;
-    public readonly dayDurationInSeconds = 24 * 60; // Full day-night cycle in 24 minutes
+    public readonly dayDurationInSeconds = 60; // Full day-night cycle in 1 minute
 
     // Allow setting initial time (e.g., start at midnight)
     constructor() {

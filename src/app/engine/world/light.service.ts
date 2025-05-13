@@ -21,7 +21,7 @@ export class LightService {
     createLights(scene: Scene): void {
         // Sun light - warm daylight
         this.sunLight = new DirectionalLight("SunLight", new Vector3(0, -1, 0), scene);
-        this.sunLight.intensity = 0; // Will be updated in update()
+        this.sunLight.intensity = 0; // Start disabled
         this.sunLight.diffuse = new Color3(1.0, 0.95, 0.8);
         this.sunLight.specular = new Color3(1.0, 0.98, 0.8);
         this.sunLight.shadowEnabled = true;
@@ -34,7 +34,7 @@ export class LightService {
 
         // Moon light - cool blue moonlight
         this.moonLight = new DirectionalLight("MoonLight", new Vector3(0, -1, 0), scene);
-        this.moonLight.intensity = 0; // Will be updated in update()
+        this.moonLight.intensity = 0; // Start disabled
         this.moonLight.diffuse = new Color3(0.5, 0.5, 0.8);
         this.moonLight.specular = new Color3(0.2, 0.2, 0.4);
         
@@ -47,6 +47,9 @@ export class LightService {
         const {
             sunDir,
             moonDir,
+            sunHeight,
+            isDay,
+            isNight,
             sunIntensity,
             moonIntensity,
             sunColor
@@ -56,12 +59,31 @@ export class LightService {
         this.sunLight.direction = sunDir.scale(-1); // Lights point toward objects
         this.moonLight.direction = moonDir.scale(-1);
         
-        // Update intensities - directly use calculated values
-        this.sunLight.intensity = sunIntensity;
-        this.moonLight.intensity = moonIntensity;
+        // IMPORTANT: Completely disable lights when they shouldn't be active
+        // This prevents issues with PBR material shading
         
-        // Update sun color based on time of day
-        this.sunLight.diffuse = sunColor;
+        // Sun light - only active during day
+        if (sunHeight > 0) {
+            // Day time - enable sun, update intensity
+            this.sunLight.intensity = sunIntensity;
+            this.sunLight.diffuse = sunColor;
+            this.sunLight.setEnabled(true);
+        } else {
+            // Night time - disable sun completely
+            this.sunLight.setEnabled(false);
+            this.sunLight.intensity = 0;
+        }
+        
+        // Moon light - only active during night
+        if (sunHeight < 0) {
+            // Night time - enable moon, update intensity
+            this.moonLight.intensity = moonIntensity;
+            this.moonLight.setEnabled(true);
+        } else {
+            // Day time - disable moon completely
+            this.moonLight.setEnabled(false);
+            this.moonLight.intensity = 0;
+        }
     }
     
     // Register objects to cast shadows

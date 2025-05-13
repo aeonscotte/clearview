@@ -84,7 +84,9 @@ export class MaterialService {
         material.useRoughnessFromMetallicTextureAlpha = true;
         material.ambientTexture = aoTex;
         material.ambientTextureStrength = 0.8;
-        material.bumpTexture.level = 1;
+        material.bumpTexture.level = 0.8;
+        material.invertNormalMapX = true; // Try toggling this
+        material.invertNormalMapY = true; // Or try toggling this
         return material;
     }
 
