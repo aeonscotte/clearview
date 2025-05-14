@@ -28,6 +28,8 @@ src/
 │   │   │   └── material.service.ts
 │   │   ├── physics/
 │   │   │   └── time.service.ts
+│   │   ├── player/
+│   │   │   └── camera.service.ts
 │   │   ├── scenes/
 │   │   │   └── scene001.scene.ts
 │   │   ├── shaders/
