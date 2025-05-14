@@ -8,7 +8,7 @@ export class TimeService {
     private startTime = performance.now();
     private lastFrameTime = performance.now();
     private elapsed = 0;
-    public readonly dayDurationInSeconds = 60; // [seconds] day-night cycle length
+    public readonly dayDurationInSeconds = 1440; // [seconds] day-night cycle length
     private continuousRotation = 0; // Track continuous rotation angle
     private starRotationFactor: number; // Factor to scale star rotation properly
 
