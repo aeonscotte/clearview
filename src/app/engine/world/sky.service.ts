@@ -3,7 +3,6 @@ import { Injectable } from '@angular/core';
 import { Scene } from '@babylonjs/core/scene';
 import { MeshBuilder, ShaderMaterial, Vector3, Mesh, Effect, Color3 } from '@babylonjs/core';
 import { TimeService } from '../physics/time.service';
-import { WeatherService } from './weather.service';
 import { CelestialService } from './celestial.service';
 
 @Injectable({
@@ -19,7 +18,6 @@ export class SkyService {
     constructor(
         private timeService: TimeService,
         private celestialService: CelestialService,
-        private weatherService?: WeatherService
     ) {}
 
     createSky(scene: Scene): void {
@@ -81,31 +79,6 @@ export class SkyService {
         this.skyMaterial.setVector3("moonPosition", moonDir);
         this.skyMaterial.setFloat("iTime", worldTime);
         this.skyMaterial.setFloat("starRotation", continuousRotation);
-        
-        // Update cloudiness based on weather
-        if (this.weatherService) {
-            const weatherStatus = this.weatherService.getWeatherStatus();
-            
-            switch (weatherStatus.type) {
-                case 'clear':
-                    this.targetCloudiness = 0.0;
-                    break;
-                case 'fog':
-                    this.targetCloudiness = 0.6 * weatherStatus.intensity;
-                    break;
-                case 'rain':
-                    this.targetCloudiness = 0.8 * weatherStatus.intensity;
-                    break;
-                case 'snow':
-                    this.targetCloudiness = 0.7 * weatherStatus.intensity;
-                    break;
-                case 'overcast':
-                    this.targetCloudiness = 0.9 * weatherStatus.intensity;
-                    break;
-                default:
-                    this.targetCloudiness = 0.0;
-            }
-        }
         
         // Smooth cloudiness transition
         if (this.cloudiness < this.targetCloudiness) {

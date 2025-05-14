@@ -9,7 +9,6 @@ import { TerrainService } from '../world/terrain.service';
 import { MaterialService } from '../material/material.service';
 import { SkyService } from '../world/sky.service';
 import { AtmosphereService } from '../world/atmosphere.service';
-import { WeatherService } from '../world/weather.service';
 import { CelestialService } from '../world/celestial.service';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 
@@ -22,7 +21,6 @@ export class Scene001 extends BaseScene {
     private skyService = new SkyService(this.timeService, this.celestialService);
     private lightService = new LightService(this.timeService, this.celestialService);
     private atmosphereService = new AtmosphereService(this.timeService, this.celestialService, this.lightService);
-    private weatherService = new WeatherService(this.timeService, this.atmosphereService);
 
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         this.scene = new Scene(this.engine);
@@ -30,8 +28,6 @@ export class Scene001 extends BaseScene {
         this.setupLighting();
         this.setupTerrain();
         this.setupSky();
-        this.setupWeather();
-
 
         return this.scene;
     }
@@ -84,11 +80,6 @@ export class Scene001 extends BaseScene {
         this.atmosphereService.setup(this.scene);
     }
 
-    private setupWeather(): void {
-        this.weatherService.setup(this.scene);
-        this.weatherService.setWeather('clear');
-    }
-
     update(deltaTime: number): void {
         // Update time first
         this.timeService.update();
@@ -98,11 +89,9 @@ export class Scene001 extends BaseScene {
         // 2. Light service (calculates sky colors)
         // 3. Sky service (uses light information)
         // 4. Atmosphere service (uses light information for fog)
-        // 5. Weather service (last as it may modify fog)
         this.lightService.update();
         this.skyService.update();
         this.atmosphereService.update(this.scene);
-        this.weatherService.update(this.scene);
 
         // Debugging celestial positions
         // console.log(this.timeService.getWorldTime().toFixed(2), 'h');
@@ -110,7 +99,6 @@ export class Scene001 extends BaseScene {
     }
 
     dispose(): void {
-        this.weatherService.dispose();
         this.scene.dispose();
     }
 }
