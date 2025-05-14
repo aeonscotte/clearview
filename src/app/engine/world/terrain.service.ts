@@ -3,6 +3,7 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { MeshBuilder, Mesh } from '@babylonjs/core/Meshes';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { Injectable } from '@angular/core';
 
 export interface HeightMapOptions {
     name?: string;
@@ -28,6 +29,9 @@ export interface BoxOptions {
     position?: Vector3;
 }
 
+@Injectable({
+    providedIn: 'root'
+})
 export class TerrainService {
     createHeightMap(scene: Scene, options: HeightMapOptions): Mesh {
         const {

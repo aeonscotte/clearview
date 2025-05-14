@@ -4,6 +4,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Injectable } from '@angular/core';
 
 export interface PBRMaterialOptions {
     name?: string;
@@ -19,6 +20,9 @@ export interface BasicTextureOptions {
     textureUrl: string;
 }
 
+@Injectable({
+  providedIn: 'root'
+})
 export class MaterialService {
     applyPBRMaterial(scene: Scene, mesh: Mesh, options: PBRMaterialOptions): void {
         const {

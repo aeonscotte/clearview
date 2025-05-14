@@ -11,19 +11,26 @@ import { SkyService } from '../world/sky.service';
 import { AtmosphereService } from '../world/atmosphere.service';
 import { CelestialService } from '../world/celestial.service';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Injectable } from '@angular/core';
+import { EngineService } from '../core/engine.service';
 
+@Injectable()
 export class Scene001 extends BaseScene {
-    private timeService = new TimeService();
-    private celestialService = new CelestialService(this.timeService);
-    private cameraService = new CameraService();
-    private terrainService = new TerrainService();
-    private materialService = new MaterialService();
-    private skyService = new SkyService(this.timeService, this.celestialService);
-    private lightService = new LightService(this.timeService, this.celestialService);
-    private atmosphereService = new AtmosphereService(this.timeService, this.celestialService, this.lightService);
-
+  constructor(
+    private engineService: EngineService,
+    private timeService: TimeService,
+    private celestialService: CelestialService,
+    private cameraService: CameraService,
+    private terrainService: TerrainService,
+    private materialService: MaterialService,
+    private skyService: SkyService,
+    private lightService: LightService,
+    private atmosphereService: AtmosphereService
+  ) {
+    super(engineService);
+  }
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
-        this.scene = new Scene(this.engine);
+        this.scene = new Scene(this.engineService.getEngine());
         this.setupCamera(canvas);
         this.setupLighting();
         this.setupTerrain();

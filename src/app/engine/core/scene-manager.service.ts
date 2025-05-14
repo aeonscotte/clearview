@@ -1,5 +1,5 @@
 // src/app/engine/core/scene-manager.service.ts
-import { Injectable } from '@angular/core';
+import { Injectable, Injector, Type } from '@angular/core';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { BaseScene } from '../base/scene';
 import { EngineService } from './engine.service';
@@ -8,18 +8,22 @@ import { EngineService } from './engine.service';
 export class SceneManagerService {
   private currentSceneInstance?: BaseScene;
 
-  constructor(private engineService: EngineService) { }
+  constructor(
+    private engineService: EngineService,
+    private injector: Injector
+  ) { }
 
-  async loadScene(sceneClass: new (engine: Engine) => BaseScene, canvas: HTMLCanvasElement): Promise<void> {
+  async loadScene(sceneType: Type<BaseScene>, canvas: HTMLCanvasElement): Promise<void> {
     if (this.currentSceneInstance) {
       this.currentSceneInstance.dispose();
     }
 
+    // Get scene instance from Angular DI system
+    this.currentSceneInstance = this.injector.get(sceneType);
+    
+    await this.currentSceneInstance!.init(canvas);
+
     const engine = this.engineService.getEngine();
-    this.currentSceneInstance = new sceneClass(engine);
-
-    await this.currentSceneInstance.init(canvas);
-
     engine.runRenderLoop(() => {
       const delta = engine.getDeltaTime();
       this.currentSceneInstance?.update(delta);

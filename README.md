@@ -1,8 +1,33 @@
 # Clearview
 
-Clearview is a modern web application framework for performant, interactive 3D experiences in the browser. Built with Angular, TypeScript, and Babylon.js, it provides a modular engine for rendering, lighting, sky, and atmospheric effects, making it easy to develop immersive 3D web apps.
+Clearview is a modern web application framework for building high-performance, interactive 3D experiences in the browser. Built with Angular, TypeScript, and Babylon.js, it provides a modular engine architecture for rendering, lighting, sky simulation, and atmospheric effects, making it easy to develop immersive 3D web applications that run smoothly across devices.
 
----
+## Core Principles
+
+Clearview is built on six key principles:
+
+1. **Minimalism** - Focused APIs that solve specific problems without bloat
+2. **Realism** - Physically-based rendering and scientific accuracy where possible
+3. **Performance** - Optimized for smooth frame rates on both high and low-end devices
+4. **Modularity** - Well-isolated components that can be used independently
+5. **Scalability** - Designed to support growth from simple to complex scenes
+6. **Clean Code** - Consistent patterns that are maintainable and testable
+
+## Architectural Design
+
+Clearview follows a service-oriented architecture using Angular's dependency injection system. This provides several advantages:
+
+- **Testability**: Services can be easily mocked and tested in isolation
+- **Reusability**: Services can be composed and reused across different scenes
+- **Maintainability**: Clear separation of concerns makes the codebase easier to understand
+
+The engine is designed around these key architectural decisions:
+
+- **Angular DI for Services**: All services use `@Injectable()` and constructor injection
+- **Standard Naming Conventions**: Consistent method naming patterns (`get...`, `is...`, verb-first actions)
+- **Information Hiding Pattern**: Private fields with public API methods for better encapsulation
+- **Scene Lifecycle Management**: Standard init/update/dispose pattern for all scenes
+- **Separation of Concerns**: Clear boundaries between world simulation, rendering, and user interaction
 
 ## Project Structure
 
@@ -20,27 +45,27 @@ src/
 │   │       └── viewport/
 │   ├── engine/
 │   │   ├── base/
-│   │   │   └── scene.ts
+│   │   │   └── scene.ts              # Abstract base scene class with lifecycle methods
 │   │   ├── core/
-│   │   │   ├── engine.service.ts
-│   │   │   └── scene-manager.service.ts
+│   │   │   ├── engine.service.ts     # BabylonJS engine wrapper
+│   │   │   └── scene-manager.service.ts  # Scene loading and lifecycle management
 │   │   ├── material/
-│   │   │   └── material.service.ts
+│   │   │   └── material.service.ts   # Material creation and management
 │   │   ├── physics/
-│   │   │   └── time.service.ts
+│   │   │   └── time.service.ts       # World time simulation
 │   │   ├── player/
-│   │   │   └── camera.service.ts
+│   │   │   └── camera.service.ts     # Camera creation and control
 │   │   ├── scenes/
-│   │   │   └── scene001.scene.ts
+│   │   │   └── scene001.scene.ts     # Example scene implementation
 │   │   ├── shaders/
-│   │   │   ├── enhancedSky.fragment.ts
-│   │   │   └── enhancedSky.vertex.ts
+│   │   │   ├── enhancedSky.fragment.ts  # Sky fragment shader
+│   │   │   └── enhancedSky.vertex.ts    # Sky vertex shader
 │   │   └── world/
-│   │       ├── atmosphere.service.ts
-│   │       ├── celestial.service.ts
-│   │       ├── light.service.ts
-│   │       ├── sky.service.ts
-│   │       └── terrain.service.ts
+│   │       ├── atmosphere.service.ts   # Fog and atmospheric effects
+│   │       ├── celestial.service.ts    # Sun/moon positioning and calculations
+│   │       ├── light.service.ts        # Dynamic lighting system
+│   │       ├── sky.service.ts          # Sky dome and shader management
+│   │       └── terrain.service.ts      # Terrain generation and management
 │   └── pages/
 │       ├── about/
 │       ├── demo/
@@ -48,107 +73,144 @@ src/
 │       └── home/
 ```
 
----
+## Service Responsibilities
 
-## Key Files and Folders in `src`
+### Core Services
 
-### Root Files
+- **EngineService**: Wraps the Babylon.js engine, handling WebGL context creation
+- **SceneManagerService**: Orchestrates scene loading, transitions, and the render loop
 
-- **index.html**: Main HTML entry point for the Angular app.
-- **main.ts**: Bootstraps the Angular application.
-- **styles.less**: Global styles and theme variables.
+### World Simulation
 
----
+- **TimeService**: Simulates the passage of time, supporting day/night cycles
+- **CelestialService**: Calculates sun/moon positions and lighting conditions based on time
+- **AtmosphereService**: Manages fog and atmospheric effects that change with time of day
+- **LightService**: Controls dynamic lighting based on celestial positions and time
+- **SkyService**: Manages the sky dome and shader for realistic sky rendering
 
-### `app/` — Main Application Code
+### Asset & Scene Management
 
-#### Core Angular
-
-- **app.component.ts / .html / .less**: Root Angular component and styles.
-- **app.config.ts**: Application-wide configuration.
-- **app.routes.ts**: Angular route definitions.
-
-#### Components
-
-- **components/clearview/viewport/**: Contains the `ViewportComponent`, which initializes the Babylon.js engine and loads the main 3D scene into a canvas.
-
-#### Pages
-
-- **pages/home/**: Home page with project introduction and navigation.
-- **pages/about/**: About page describing project goals and technology.
-- **pages/demo/clearview/**: Demo page embedding the 3D viewport.
-
----
-
-### `engine/` — The 3D Engine
-
-The `engine` folder contains all logic for rendering, simulation, and scene management. It is organized into several submodules:
-
-#### `base/`
-
-- **scene.ts**: Defines the abstract `BaseScene` class. All scenes inherit from this, implementing `init`, `update`, and `dispose` methods for lifecycle management.
-
-#### `core/`
-
-- **engine.service.ts**: Wraps Babylon.js's `Engine` object, handling WebGL context creation and access.
-- **scene-manager.service.ts**: Loads, initializes, and manages scenes. Handles the render loop and scene switching.
-
-#### `material/`
-
-- **material.service.ts**: Utilities for creating and applying Babylon.js PBR and standard materials, including texture loading and tiling.
-
-#### `physics/`
-
-- Time and later physics belong here.
-
-#### `scenes/`
-
-- **scene001.scene.ts**: Example scene implementation. Sets up camera, lighting, terrain, sky, and atmosphere. Calls update methods for all engine subsystems each frame.
-
-#### `shaders/`
-
-- Custom GLSL fragment and vertex shaders for rendering a physically-based sky dome, including sun, moon, stars, and atmospheric scattering.
-
-#### `world/`
-
-- **atmosphere.service.ts**: Calculates and applies fog color/density based on time of day and sky conditions.
-- **celestial.service.ts**: Computes sun/moon positions, intensities, and visibility for the current world time.
-- **light.service.ts**: Manages Babylon.js lights (sun, moon, ambient), updates their properties, and computes sky colors for smooth day/night transitions.
-- **sky.service.ts**: Creates and updates the sky dome mesh and material, passing celestial data and time to the sky shader.
-
----
+- **MaterialService**: Creates and applies materials and textures to scene objects
+- **TerrainService**: Generates terrain meshes from heightmaps or procedural algorithms
+- **CameraService**: Creates and manages various camera types with intuitive controls
 
 ## Engine Workflow
 
 1. **Initialization**:  
-   - The `ViewportComponent` creates the Babylon.js engine and loads the main scene (`Scene001`).
-   - `Scene001` sets up camera, lighting, terrain, sky, and atmosphere.
+   - The `ViewportComponent` injects the required services and loads the main scene
+   - `SceneManagerService` orchestrates scene creation through Angular's DI
+   - Each scene injects its required services via constructor injection
 
 2. **Render Loop**:  
-   - The `SceneManagerService` runs the render loop.
-   - Each frame, the following update order is used:
-     1. **TimeService**: Advances world time.
-     2. **CelestialService**: Updates sun/moon positions and visibility.
-     3. **LightService**: Updates light directions, intensities, and sky color transitions.
-     4. **SkyService**: Updates the sky dome shader uniforms.
-     5. **AtmosphereService**: Updates fog color/density for the scene.
+   - Managed by `SceneManagerService` with this update order:
+     1. **TimeService**: Advances world time
+     2. **CelestialService**: Updates sun/moon positions
+     3. **LightService**: Updates light properties and sky colors
+     4. **SkyService**: Updates sky shader uniforms
+     5. **AtmosphereService**: Updates fog properties
 
-3. **Sky & Lighting**:  
-   - The sky dome is rendered with a custom shader, blending colors and effects based on time of day and celestial positions.
-   - Lighting and fog are smoothly transitioned for realism.
+3. **Resource Management**:
+   - Services implement proper disposal methods to prevent memory leaks
+   - Resources are created lazily and cached for performance
+
+## Development Guidelines
+
+When extending Clearview, follow these guidelines:
+
+1. **Services**:
+   - All services should be decorated with `@Injectable({ providedIn: 'root' })`
+   - Services should use constructor injection for dependencies
+   - Public method naming follows specific patterns:
+     - Getters start with `get...` (e.g., `getWorldTime()`)
+     - Boolean queries start with `is...` (e.g., `isDay()`)
+     - Actions use verb-first naming (e.g., `createSky()`, `updateLights()`)
+
+2. **Scene Creation**:
+   - Extend `BaseScene` and implement the required lifecycle methods
+   - Use constructor injection to get required services
+   - Follow the init/update/dispose pattern
+
+3. **Shader Development**:
+   - Store shaders in separate files (.vertex.ts and .fragment.ts)
+   - Include error handling for shader compilation
+   - Provide fallbacks for failed shader compilation
+
+4. **Performance Optimization**:
+   - Use appropriate mesh complexity (e.g., fewer segments for background elements)
+   - Implement quality scaling based on device capability
+   - Keep shader complexity in check for mobile compatibility
+
+## Getting Started
+
+1. **Installation**:
+   ```bash
+   npm install
+   ```
+
+2. **Development Server**:
+   ```bash
+   ng serve
+   ```
+
+3. **Creating a New Scene**:
+   ```typescript
+   @Injectable()
+   export class MyNewScene extends BaseScene {
+     constructor(
+       private engineService: EngineService,
+       private timeService: TimeService,
+       private cameraService: CameraService,
+       // other required services...
+     ) {
+       super(engineService);
+     }
+
+     async init(canvas: HTMLCanvasElement): Promise<Scene> {
+       this.scene = new Scene(this.engineService.getEngine());
+       // Setup your scene...
+       return this.scene;
+     }
+
+     update(deltaTime: number): void {
+       // Update your scene...
+     }
+
+     dispose(): void {
+       // Clean up resources...
+       this.scene.dispose();
+     }
+   }
+   ```
+
+4. **Register your scene in app.config.ts**:
+   ```typescript
+   export const appConfig: ApplicationConfig = {
+     providers: [
+       // other providers...
+       MyNewScene,
+       provideRouter(routes)
+     ]
+   };
+   ```
+
+## Performance Considerations
+
+Clearview is designed for performance across a range of devices:
+
+- **Memory Management**: All services implement proper disposal methods
+- **Adaptive Quality**: Scene elements can scale detail based on device capability
+- **Shader Optimization**: Shaders are designed with fallbacks for lower-end devices
+- **Asset Loading**: Assets are loaded asynchronously with proper error handling
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. Follow the architectural patterns and naming conventions
+2. Include tests for new functionality
+3. Ensure performance is maintained across devices
+4. Document new features and APIs
 
 ---
 
-## Extending the Engine
-
-- **Add new scenes**: Inherit from `BaseScene` and implement the required methods.
-- **Add new materials**: Use `MaterialService` to define and apply new PBR or standard materials.
-- **Customize sky/atmosphere**: Modify the shaders or the services in `world/` for different visual effects.
-
----
-
-## Summary
-
-Clearview's `src/app/engine` folder is the heart of the project, providing a modular, extensible 3D engine built on Babylon.js. Its architecture separates scene management, rendering, materials, sky, lighting, and atmospheric effects, making it easy to build and extend high-performance 3D web applications.
-
----
+Clearview is an ongoing project focused on creating beautiful, performant 3D web experiences. We welcome collaboration and feedback from the community.

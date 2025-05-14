@@ -5,6 +5,7 @@ import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
 import { TargetCamera } from '@babylonjs/core/Cameras/targetCamera';
 import { Animation } from '@babylonjs/core/Animations/animation';
+import { Injectable } from '@angular/core';
 
 export interface ArcRotateCameraOptions {
     name?: string;
@@ -37,6 +38,9 @@ export interface FreeCameraOptions {
 /**
  * Service for creating and managing cameras
  */
+@Injectable({
+  providedIn: 'root'
+})
 export class CameraService {
     /**
      * Creates an ArcRotateCamera with intuitive orbit controls
