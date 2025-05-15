@@ -37,11 +37,11 @@ export class Scene001 extends BaseScene {
     ) {
         super(engineService);
     }
-    
+
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         console.log('Scene001: Initializing scene');
         this.scene = new Scene(this.engineService.getEngine());
-        
+
         this.registerShaders();
         this.setupCamera(canvas);
         this.setupLighting();
@@ -54,17 +54,14 @@ export class Scene001 extends BaseScene {
     // Register all shaders needed for this scene
     private registerShaders(): void {
         console.log('Scene001: Registering shaders');
-        
+
         const success = this.shaderRegistry.registerShader(
-            'enhancedSky', 
+            'enhancedSky',
             skyVertexShader,
             skyFragmentShader
         );
-        
+
         console.log('Sky shader registration successful:', success);
-        
-        // Register other shaders as needed for this scene
-        // this.shaderRegistry.registerShader('water', waterVertexShader, waterFragmentShader);
     }
 
     private setupCamera(canvas: HTMLCanvasElement): void {
@@ -73,17 +70,16 @@ export class Scene001 extends BaseScene {
             target: new Vector3(0, 1, 0),
             radius: 8,
         });
-        
-        // Ensure proper view of sky dome
+
         if (this.scene.activeCamera) {
-            this.scene.activeCamera.minZ = 0.1;  // Close near plane
-            this.scene.activeCamera.maxZ = 1500; // Far enough to see the sky dome
+            this.scene.activeCamera.minZ = 0.1;
+            this.scene.activeCamera.maxZ = 1500;
         }
     }
 
     private setupLighting(): void {
         this.lightService.createLights(this.scene);
-        this.scene.clearColor.set(0, 0, 0, 1); // Black background
+        this.scene.clearColor.set(0, 0, 0, 1);
     }
 
     private setupTerrain(): void {
@@ -100,12 +96,9 @@ export class Scene001 extends BaseScene {
 
         ground.receiveShadows = true;
 
-        // Create a debug sphere above the ground
         const debugSphere = MeshBuilder.CreateSphere('debugSphere', { diameter: 1 }, this.scene);
         debugSphere.position = new Vector3(0, 1, 0);
         debugSphere.material = ground.material;
-
-        // Enable shadow casting for the debug sphere
         this.lightService.addShadowCaster(debugSphere);
     }
 
@@ -115,7 +108,12 @@ export class Scene001 extends BaseScene {
     }
 
     update(deltaTime: number): void {
-        // Update services in the correct order
+        // When paused, do nothing at all - no updates
+        if (this.timeService.isPaused()) {
+            return;
+        }
+
+        // Only run updates when not paused
         this.timeService.update(deltaTime);
         this.celestialService.updateTimeState();
         this.lightService.update();

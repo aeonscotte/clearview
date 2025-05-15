@@ -37,7 +37,18 @@ export class SceneManagerService {
         });
     }
 
-    // Add this method to restore the render loop after pausing
+    // Add this method to force a scene update regardless of pause state
+    forceUpdate(): void {
+        if (!this.currentSceneInstance) return;
+
+        const engine = this.engineService.getEngine();
+        const delta = engine.getDeltaTime();
+
+        // Force a single update to synchronize all systems
+        this.currentSceneInstance.update(delta);
+    }
+
+    // Restore the render loop
     restoreRenderLoop(): void {
         this.setupRenderLoop();
     }

@@ -5,6 +5,7 @@ uniform vec3 sunPosition;   // Sun direction vector
 uniform vec3 moonPosition;  // Moon direction vector
 uniform float iTime;        // World time in hours (0-24)
 uniform float starRotation; // Continuous rotation for stars (doesn't reset at midnight)
+uniform int isPaused;       // Pause state (1 = paused, 0 = running)
 
 // Time factors passed directly from CelestialService
 uniform float dayFactor;    // Day intensity (0-1)
@@ -59,7 +60,16 @@ vec3 stars(vec3 dir, float time, float rotation) {
             // Subtle twinkling - never goes completely off
             float baseLevel = 0.7 + 0.2 * float(i); // Stars don't disappear completely
             float twinkleSpeed = 3.0 + hash(grid) * 7.0; // Varied speeds
-            float twinkling = baseLevel + (1.0 - baseLevel) * sin(time * twinkleSpeed + starPresence * 20.0) * 0.5 + 0.5;
+            
+            // Use time for twinkling only if not paused
+            float twinkling;
+            if (isPaused == 1) {
+                // When paused, use a fixed value for consistent appearance
+                twinkling = baseLevel + (1.0 - baseLevel) * 0.5; // Middle value
+            } else {
+                // Normal twinkling animation when not paused
+                twinkling = baseLevel + (1.0 - baseLevel) * sin(time * twinkleSpeed + starPresence * 20.0) * 0.5 + 0.5;
+            }
             
             // Star color - slight variation based on temperature (bluer/redder)
             float temperature = hash(grid + vec3(123.456, 789.012, 345.678));
