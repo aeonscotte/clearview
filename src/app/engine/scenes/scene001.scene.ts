@@ -88,22 +88,20 @@ export class Scene001 extends BaseScene {
     }
 
     update(deltaTime: number): void {
-        // Update time first
-        this.timeService.update();
-        
-        // Then update all sky-related services in the correct order
-        // 1. Celestial positions first (used by all other services)
-        // 2. Light service (calculates sky colors)
-        // 3. Sky service (uses light information)
-        // 4. Atmosphere service (uses light information for fog)
-        this.lightService.update();
-        this.skyService.update();
-        this.atmosphereService.update(this.scene);
-
-        // Debugging celestial positions
-        // console.log(this.timeService.getWorldTime().toFixed(2), 'h');
-       
-    }
+    // Update time first
+    this.timeService.update();
+    
+    // Then update celestial state once - this calculates all time factors
+    this.celestialService.updateTimeState();
+    
+    // Then update services that depend on the celestial state
+    // 1. Light service (calculates sky colors)
+    // 2. Sky service (uses light information)
+    // 3. Atmosphere service (uses light information for fog)
+    this.lightService.update();
+    this.skyService.update();
+    this.atmosphereService.update(this.scene);
+}
 
     dispose(): void {
         this.scene.dispose();

@@ -1,10 +1,20 @@
-// src/app/engine/world/shaders/enhancedSky.fragment.ts
+// src/app/engine/shaders/enhancedSky.fragment.ts
 export const fragmentShader = `
 precision highp float;
 uniform vec3 sunPosition;   // Sun direction vector
 uniform vec3 moonPosition;  // Moon direction vector
 uniform float iTime;        // World time in hours (0-24)
 uniform float starRotation; // Continuous rotation for stars (doesn't reset at midnight)
+
+// Time factors passed directly from CelestialService
+uniform float dayFactor;    // Day intensity (0-1)
+uniform float nightFactor;  // Night intensity (0-1)
+uniform float dawnFactor;   // Dawn intensity (0-1)
+uniform float duskFactor;   // Dusk intensity (0-1)
+uniform float sunVisibility; // Sun visibility factor (0-1)
+uniform float moonOpacity;   // Moon opacity factor (0-1)
+uniform float starVisibility; // Star visibility factor (0-1)
+
 varying vec3 vPosition;
 varying vec3 vNormal;
 
@@ -76,125 +86,6 @@ vec3 stars(vec3 dir, float time, float rotation) {
 float smootherstep(float edge0, float edge1, float x) {
     x = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
     return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
-}
-
-// Calculate time of day factors for smooth transitions
-void getTimeFactors(float worldTime, out float nightFactor, out float dawnFactor, 
-                   out float dayFactor, out float duskFactor, 
-                   out float starVisibility, out float sunVisibility, out float moonOpacity) {
-    // Key time points (in hours) - matching celestial.service.ts
-    float midnight = 0.0;
-    float dawnStart = 5.0;
-    float sunrise = 6.0;
-    float dawnEnd = 7.0;
-    float noon = 12.0;
-    float duskStart = 17.0;
-    float sunset = 18.0;
-    float duskEnd = 19.0;
-    
-    // Night factor
-    nightFactor = 0.0;
-    if (worldTime >= duskEnd || worldTime <= dawnStart) {
-        if (worldTime >= duskEnd) {
-            // Evening to midnight
-            nightFactor = smootherstep(duskEnd, duskEnd + 2.0, worldTime);
-        } else {
-            // Midnight to dawn start
-            nightFactor = smootherstep(dawnStart, dawnStart - 2.0, worldTime);
-        }
-    }
-    
-    // Dawn factor
-    dawnFactor = 0.0;
-    if (worldTime >= dawnStart && worldTime <= dawnEnd) {
-        if (worldTime < sunrise) {
-            // Dawn Start to Sunrise (ramp up)
-            dawnFactor = smootherstep(dawnStart, sunrise, worldTime);
-        } else {
-            // Sunrise to Dawn End (ramp down)
-            dawnFactor = smootherstep(dawnEnd, sunrise, worldTime);
-        }
-    }
-    
-    // Day factor
-    dayFactor = 0.0;
-    if (worldTime >= dawnEnd && worldTime <= duskStart) {
-        float dayProgress = (worldTime - dawnEnd) / (duskStart - dawnEnd);
-        
-        // Smoother transition at edges of day
-        if (dayProgress < 0.1) {
-            dayFactor = smootherstep(0.0, 0.1, dayProgress);
-        } else if (dayProgress > 0.9) {
-            dayFactor = smootherstep(1.0, 0.9, dayProgress);
-        } else {
-            dayFactor = 1.0;
-        }
-    }
-    
-    // Dusk factor
-    duskFactor = 0.0;
-    if (worldTime >= duskStart && worldTime <= duskEnd) {
-        if (worldTime < sunset) {
-            // Dusk Start to Sunset (ramp up)
-            duskFactor = smootherstep(duskStart, sunset, worldTime);
-        } else {
-            // Sunset to Dusk End (ramp down)
-            duskFactor = smootherstep(duskEnd, sunset, worldTime);
-        }
-    }
-    
-    // Normalize factors
-    float totalFactor = nightFactor + dawnFactor + dayFactor + duskFactor;
-    if (totalFactor > 0.001) {
-        nightFactor /= totalFactor;
-        dawnFactor /= totalFactor;
-        dayFactor /= totalFactor;
-        duskFactor /= totalFactor;
-    } else {
-        // Fallback
-        dayFactor = 1.0;
-    }
-    
-    // Sun visibility
-    sunVisibility = 0.0;
-    if (worldTime >= sunrise - 0.2 && worldTime <= sunset + 0.2) {
-        if (worldTime < sunrise) {
-            // Just before sunrise: fade in (0 to 1 over 0.2 hours)
-            sunVisibility = smootherstep(sunrise - 0.2, sunrise, worldTime);
-        } else if (worldTime > sunset) {
-            // Just after sunset: fade out (1 to 0 over 0.2 hours)
-            sunVisibility = smootherstep(sunset + 0.2, sunset, worldTime);
-        } else {
-            // Fully visible during day
-            sunVisibility = 1.0;
-        }
-    }
-    
-    // Moon visibility/opacity
-    moonOpacity = 0.0;
-    if (worldTime >= sunset && worldTime <= duskEnd) {
-        // Sunset to dusk end: fade in
-        moonOpacity = smootherstep(sunset, duskEnd, worldTime);
-    } else if (worldTime >= duskEnd || worldTime <= dawnStart) {
-        // Fully visible during night
-        moonOpacity = 1.0;
-    } else if (worldTime >= dawnStart && worldTime <= sunrise) {
-        // Dawn start to sunrise: fade out
-        moonOpacity = smootherstep(sunrise, dawnStart, worldTime);
-    }
-    
-    // Star visibility follows a similar pattern to moon opacity
-    starVisibility = 0.0;
-    if (worldTime >= duskEnd || worldTime <= dawnStart) {
-        // Fully visible during night
-        starVisibility = 1.0;
-    } else if (worldTime >= sunset && worldTime <= duskEnd) {
-        // Sunset to dusk end: fade in
-        starVisibility = smootherstep(sunset, duskEnd, worldTime);
-    } else if (worldTime >= dawnStart && worldTime <= sunrise) {
-        // Dawn start to sunrise: fade out
-        starVisibility = smootherstep(sunrise, dawnStart, worldTime);
-    }
 }
 
 // Get scientifically accurate sky colors based on time of day
@@ -287,12 +178,6 @@ void main(void) {
     // Normalized view direction height (0 at horizon, 1 at zenith)
     float viewHeight = max(0.0, dir.y);
     
-    // Calculate time factors
-    float nightFactor, dawnFactor, dayFactor, duskFactor;
-    float starVisibility, sunVisibility, moonOpacity;
-    getTimeFactors(iTime, nightFactor, dawnFactor, dayFactor, duskFactor, 
-                  starVisibility, sunVisibility, moonOpacity);
-    
     // Get scientifically accurate zenith and horizon colors
     vec3 zenithColor, horizonColor;
     getSkyColors(iTime, viewHeight, zenithColor, horizonColor);
@@ -311,7 +196,7 @@ void main(void) {
     // Final sky color blending zenith and horizon
     vec3 skyColor = mix(horizonColor, zenithColor, blendFactor);
     
-    // Get stars - visible based on star visibility factor - NOW USING CONTINUOUS ROTATION
+    // Get stars - using precomputed starVisibility - NOW USING CONTINUOUS ROTATION
     vec3 starField = vec3(0.0);
     if (starVisibility > 0.0 && viewHeight > 0.0) {
         starField = stars(dir, iTime, starRotation) * starVisibility;
@@ -364,7 +249,7 @@ void main(void) {
         );
     }
     
-    // Add sun only when it should be visible
+    // Add sun only when it should be visible - use precomputed sunVisibility
     if (sunVisibility > 0.0) {
         // Sun disc with opacity based on visibility factor
         skyColor += sunColor * sunDisc * sunVisibility;
@@ -382,7 +267,7 @@ void main(void) {
     float moonGlow = pow(moonDot, 250.0) * 0.3;
     float moonOuterGlow = pow(moonDot, 40.0) * 0.06;
     
-    // Add moon based on opacity
+    // Add moon based on precomputed opacity
     if (moonOpacity > 0.0) {
         // Light gray moon with subtle blue tint
         vec3 moonColor = vec3(0.9, 0.9, 0.95);

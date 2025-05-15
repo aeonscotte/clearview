@@ -29,15 +29,16 @@ export class SkyService {
     constructor(
         private timeService: TimeService,
         private celestialService: CelestialService
-    ) {}
+    ) {
+        // Register shaders once in the constructor
+        this.registerShaders();
+    }
 
     /**
      * Creates the sky dome with appropriate shading
      * @param scene The BabylonJS scene
      */
     createSky(scene: Scene): void {
-        this.registerShaders();
-        
         // Create the sky dome
         this.skyDome = MeshBuilder.CreateSphere('skyDome', {
             diameter: 1000,
@@ -57,20 +58,43 @@ export class SkyService {
             fragment: this.SHADER_NAME
         }, {
             attributes: ["position", "normal"],
-            uniforms: ["worldViewProjection", "sunPosition", "moonPosition", "iTime", "starRotation"]
+            uniforms: [
+                "worldViewProjection", 
+                "sunPosition", 
+                "moonPosition", 
+                "iTime", 
+                "starRotation",
+                "dayFactor",
+                "nightFactor",
+                "dawnFactor",
+                "duskFactor",
+                "sunVisibility",
+                "moonOpacity",
+                "starVisibility"
+            ]
         });
         
         // Enable backface culling for proper rendering inside the dome
         this.skyMaterial.backFaceCulling = false;
         
-        // Initialize uniform values
+        // Get the time state and celestial positions
+        const timeState = this.celestialService.getTimeState();
         const { sunDir, moonDir } = this.celestialService.getCelestialPositions();
-        const continuousRotation = this.timeService.getContinuousRotation();
         
+        // Initialize uniform values using the time state
         this.skyMaterial.setVector3("sunPosition", sunDir);
         this.skyMaterial.setVector3("moonPosition", moonDir);
-        this.skyMaterial.setFloat("iTime", this.timeService.getWorldTime());
-        this.skyMaterial.setFloat("starRotation", continuousRotation);
+        this.skyMaterial.setFloat("iTime", timeState.worldTime);
+        this.skyMaterial.setFloat("starRotation", timeState.continuousRotation);
+        
+        // Pass time factors directly to shader
+        this.skyMaterial.setFloat("dayFactor", timeState.dayFactor);
+        this.skyMaterial.setFloat("nightFactor", timeState.nightFactor);
+        this.skyMaterial.setFloat("dawnFactor", timeState.dawnFactor);
+        this.skyMaterial.setFloat("duskFactor", timeState.duskFactor);
+        this.skyMaterial.setFloat("sunVisibility", timeState.sunVisibility);
+        this.skyMaterial.setFloat("moonOpacity", timeState.moonOpacity);
+        this.skyMaterial.setFloat("starVisibility", timeState.starVisibility);
         
         // Apply the material to the sky dome
         this.skyDome.material = this.skyMaterial;
@@ -86,18 +110,24 @@ export class SkyService {
             return;
         }
         
-        // Get the current celestial positions
+        // Get the unified time state and celestial positions
+        const timeState = this.celestialService.getTimeState();
         const { sunDir, moonDir } = this.celestialService.getCelestialPositions();
-        const worldTime = this.timeService.getWorldTime();
         
-        // Get continuous rotation for stars - prevents midnight reset
-        const continuousRotation = this.timeService.getContinuousRotation();
-        
-        // Update shader uniforms with latest values
+        // Update shader uniforms with latest values from the time state
         this.skyMaterial.setVector3("sunPosition", sunDir);
         this.skyMaterial.setVector3("moonPosition", moonDir);
-        this.skyMaterial.setFloat("iTime", worldTime);
-        this.skyMaterial.setFloat("starRotation", continuousRotation);
+        this.skyMaterial.setFloat("iTime", timeState.worldTime);
+        this.skyMaterial.setFloat("starRotation", timeState.continuousRotation);
+        
+        // Pass time factors directly to shader - no need to recalculate in shader
+        this.skyMaterial.setFloat("dayFactor", timeState.dayFactor);
+        this.skyMaterial.setFloat("nightFactor", timeState.nightFactor);
+        this.skyMaterial.setFloat("dawnFactor", timeState.dawnFactor);
+        this.skyMaterial.setFloat("duskFactor", timeState.duskFactor);
+        this.skyMaterial.setFloat("sunVisibility", timeState.sunVisibility);
+        this.skyMaterial.setFloat("moonOpacity", timeState.moonOpacity);
+        this.skyMaterial.setFloat("starVisibility", timeState.starVisibility);
     }
     
     /**
@@ -117,10 +147,15 @@ export class SkyService {
 
     /**
      * Registers the vertex and fragment shaders with BabylonJS
+     * This is now called once during service creation
      */
     private registerShaders(): void {
-        // Register vertex and fragment shaders
-        Effect.ShadersStore[`${this.SHADER_NAME}VertexShader`] = vertexShader;
-        Effect.ShadersStore[`${this.SHADER_NAME}FragmentShader`] = fragmentShader;
+        // Check if already registered to avoid duplicates
+        if (!Effect.ShadersStore[`${this.SHADER_NAME}VertexShader`]) {
+            // Register vertex and fragment shaders
+            Effect.ShadersStore[`${this.SHADER_NAME}VertexShader`] = vertexShader;
+            Effect.ShadersStore[`${this.SHADER_NAME}FragmentShader`] = fragmentShader;
+            console.log(`Registered ${this.SHADER_NAME} shaders`);
+        }
     }
 }
