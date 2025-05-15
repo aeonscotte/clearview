@@ -4,8 +4,6 @@ Clearview is a modern web application framework for building high-performance, i
 
 ## Core Principles
 
-Clearview is built on six key principles:
-
 1. **Minimalism** - Focused APIs that solve specific problems without bloat
 2. **Realism** - Physically-based rendering and scientific accuracy where possible
 3. **Performance** - Optimized for smooth frame rates on both high and low-end devices
@@ -15,132 +13,201 @@ Clearview is built on six key principles:
 
 ## Architectural Design
 
-Clearview follows a service-oriented architecture using Angular's dependency injection system. This provides several advantages:
+Clearview follows a service-oriented architecture using Angular's standalone components and dependency injection system, providing testability, reusability, and maintainability through clear separation of concerns.
 
-- **Testability**: Services can be easily mocked and tested in isolation
-- **Reusability**: Services can be composed and reused across different scenes
-- **Maintainability**: Clear separation of concerns makes the codebase easier to understand
-
-The engine is designed around these key architectural decisions:
-
-- **Angular DI for Services**: All services use `@Injectable()` and constructor injection
-- **Standard Naming Conventions**: Consistent method naming patterns (`get...`, `is...`, verb-first actions)
-- **Information Hiding Pattern**: Private fields with public API methods for better encapsulation
+Key architectural decisions:
+- **Single Source of Truth**: Unified time state model to prevent redundant calculations
+- **Efficient Resource Management**: Optimized memory usage and shader compilation
+- **Angular Standalone Components**: Full compatibility with modern Angular patterns
 - **Scene Lifecycle Management**: Standard init/update/dispose pattern for all scenes
-- **Separation of Concerns**: Clear boundaries between world simulation, rendering, and user interaction
+
+### Memory Management Approach
+
+Clearview implements a memory-efficient approach to minimize garbage collection:
+- **Object Reuse**: Services pre-allocate and reuse objects in calculation-heavy code
+- **In-Place Modifications**: Using methods like `copyFrom()` and `*ToRef()` instead of creating new objects
+- **Smart Return Values**: Pre-allocated objects for method returns
+
+### Shader Management System
+
+- **Centralized Registration**: Shaders are registered once at application startup
+- **Preventing Duplicate Compilation**: Registry tracks registered shaders to avoid redundancy
+- **Error Handling**: Robust error handling for shader compilation failures
+
+### State Management Approach
+
+- **Unidirectional Data Flow**: State changes propagate in a single direction
+- **Observable State**: RxJS Observables for subscribing to state changes
+- **Localized State**: State is managed by the service responsible for it
+
+## Stylistic Decisions
+
+### Naming Conventions
+
+- **Files**: kebab-case (e.g., `light.service.ts`, `enhanced-sky.vertex.ts`)
+- **Classes**: PascalCase (e.g., `LightService`, `SkyMaterial`)
+- **Interfaces**: PascalCase with no prefix (e.g., `TimeState`, not `ITimeState`)
+- **Methods**:
+  - Public methods: camelCase with verb-first naming (e.g., `createLight()`)
+  - Boolean methods: prefixed with "is", "has", or "should" (e.g., `isVisible()`)
+  - Getters/Setters: prefixed with "get"/"set" (e.g., `getWorldTime()`)
+- **Properties**:
+  - Public properties: camelCase (e.g., `worldTime`)
+  - Private properties: camelCase with underscore prefix (e.g., `_currentTime`)
+  - Constants: UPPER_SNAKE_CASE (e.g., `MAX_LIGHTS`)
+
+### Code Organization
+
+- **Single Responsibility**: Each file has a single responsibility
+- **Class Structure**:
+  ```typescript
+  @Injectable({ providedIn: 'root' })
+  export class ExampleService {
+    // Constants
+    private readonly CONSTANT_VALUE = 1.0;
+    
+    // Properties
+    private _property: Type;
+    
+    // Temporary objects for calculations
+    private _tempObject = new SomeObject();
+    
+    // Constructor with dependency injection
+    constructor(
+      private dependencyOne: ServiceOne,
+      private dependencyTwo: ServiceTwo
+    ) {}
+    
+    // Public methods (alphabetical order)
+    
+    // Private methods (alphabetical order)
+  }
+  ```
 
 ## Project Structure
 
 ```
 src/
-├── index.html
-├── main.ts
-├── styles.less
 ├── app/
-│   ├── app.component.*
-│   ├── app.config.ts
-│   ├── app.routes.ts
-│   ├── components/
-│   │   └── clearview/
-│   │       └── viewport/
-│   ├── engine/
+│   ├── app.component.*                # Root component
+│   ├── app.config.ts                  # Application configuration
+│   ├── app.routes.ts                  # Routing configuration
+│   ├── engine/                        # 3D engine core
 │   │   ├── base/
-│   │   │   └── scene.ts              # Abstract base scene class with lifecycle methods
-│   │   ├── core/
-│   │   │   ├── engine.service.ts     # BabylonJS engine wrapper
-│   │   │   └── scene-manager.service.ts  # Scene loading and lifecycle management
+│   │   │   └── scene.ts               # Abstract base scene 
+│   │   ├── core/                      # Core engine services
+│   │   │   ├── engine.service.ts      # BabylonJS wrapper
+│   │   │   └── scene-manager.service.ts # Scene management
 │   │   ├── material/
-│   │   │   └── material.service.ts   # Material creation and management
+│   │   │   └── material.service.ts    # Material creation
 │   │   ├── physics/
-│   │   │   └── time.service.ts       # World time simulation
+│   │   │   ├── time.service.ts        # Time simulation
+│   │   │   └── time-state.model.ts    # Time state model
 │   │   ├── player/
-│   │   │   └── camera.service.ts     # Camera creation and control
+│   │   │   └── camera.service.ts      # Camera controls
 │   │   ├── scenes/
-│   │   │   └── scene001.scene.ts     # Example scene implementation
+│   │   │   └── scene001.scene.ts      # Example scene
 │   │   ├── shaders/
-│   │   │   ├── enhancedSky.fragment.ts  # Sky fragment shader
-│   │   │   └── enhancedSky.vertex.ts    # Sky vertex shader
+│   │   │   ├── enhancedSky.fragment.ts # Sky shader
+│   │   │   ├── enhancedSky.vertex.ts   # Sky shader
+│   │   │   └── shader-registry.service.ts # Shader management
 │   │   └── world/
-│   │       ├── atmosphere.service.ts   # Fog and atmospheric effects
-│   │       ├── celestial.service.ts    # Sun/moon positioning and calculations
-│   │       ├── light.service.ts        # Dynamic lighting system
-│   │       ├── sky.service.ts          # Sky dome and shader management
-│   │       └── terrain.service.ts      # Terrain generation and management
-│   └── pages/
-│       ├── about/
-│       ├── demo/
-│       │   └── clearview/
-│       └── home/
+│   │       ├── atmosphere.service.ts  # Atmospheric effects
+│   │       ├── celestial.service.ts   # Sun/moon positioning
+│   │       ├── light.service.ts       # Lighting system
+│   │       ├── sky.service.ts         # Sky rendering
+│   │       └── terrain.service.ts     # Terrain generation
+│   ├── pages/                         # Application pages
+│   └── components/                    # Application components
 ```
 
 ## Service Responsibilities
 
 ### Core Services
 
-- **EngineService**: Wraps the Babylon.js engine, handling WebGL context creation
-- **SceneManagerService**: Orchestrates scene loading, transitions, and the render loop
+- **EngineService**: Wraps the Babylon.js engine, handling WebGL context and canvas
+- **SceneManagerService**: Orchestrates scene loading, transitions, and render loop
+- **ShaderRegistryService**: Manages shader registration and compilation
 
 ### World Simulation
 
 - **TimeService**: Simulates the passage of time, supporting day/night cycles
-- **CelestialService**: Calculates sun/moon positions and lighting conditions based on time
-- **AtmosphereService**: Manages fog and atmospheric effects that change with time of day
-- **LightService**: Controls dynamic lighting based on celestial positions and time
+- **CelestialService**: Calculates sun/moon positions and lighting conditions
+- **AtmosphereService**: Manages fog and atmospheric effects
+- **LightService**: Controls dynamic lighting based on celestial positions
 - **SkyService**: Manages the sky dome and shader for realistic sky rendering
 
 ### Asset & Scene Management
 
-- **MaterialService**: Creates and applies materials and textures to scene objects
-- **TerrainService**: Generates terrain meshes from heightmaps or procedural algorithms
-- **CameraService**: Creates and manages various camera types with intuitive controls
+- **MaterialService**: Creates and applies materials and textures
+- **TerrainService**: Generates terrain meshes
+- **CameraService**: Creates and manages camera types with intuitive controls
 
 ## Engine Workflow
 
 1. **Initialization**:  
-   - The `ViewportComponent` injects the required services and loads the main scene
-   - `SceneManagerService` orchestrates scene creation through Angular's DI
-   - Each scene injects its required services via constructor injection
+   - The application initializes and registers all shaders
+   - SceneManagerService orchestrates scene creation through Angular's DI
 
 2. **Render Loop**:  
-   - Managed by `SceneManagerService` with this update order:
+   - Managed by SceneManagerService with this update order:
      1. **TimeService**: Advances world time
-     2. **CelestialService**: Updates sun/moon positions
-     3. **LightService**: Updates light properties and sky colors
-     4. **SkyService**: Updates sky shader uniforms
+     2. **CelestialService**: Updates the unified time state
+     3. **LightService**: Updates light properties
+     4. **SkyService**: Updates sky shader
      5. **AtmosphereService**: Updates fog properties
 
 3. **Resource Management**:
-   - Services implement proper disposal methods to prevent memory leaks
-   - Resources are created lazily and cached for performance
+   - Services implement proper dispose methods
+   - Memory-efficient patterns minimize garbage collection
 
-## Development Guidelines
+## Performance Optimizations
 
-When extending Clearview, follow these guidelines:
+1. **Memory Management**:
+   ```typescript
+   // ❌ Bad practice - creates new objects every frame
+   update(): void {
+     const color = new Color3(0.5, 0.5, 0.5); // Creates garbage
+     this.material.diffuse = color;
+   }
 
-1. **Services**:
-   - All services should be decorated with `@Injectable({ providedIn: 'root' })`
-   - Services should use constructor injection for dependencies
-   - Public method naming follows specific patterns:
-     - Getters start with `get...` (e.g., `getWorldTime()`)
-     - Boolean queries start with `is...` (e.g., `isDay()`)
-     - Actions use verb-first naming (e.g., `createSky()`, `updateLights()`)
+   // ✅ Good practice - reuses existing objects
+   private tempColor = new Color3(0, 0, 0);
+   update(): void {
+     this.tempColor.set(0.5, 0.5, 0.5); // Zero allocations
+     this.material.diffuse.copyFrom(this.tempColor);
+   }
+   ```
 
-2. **Scene Creation**:
-   - Extend `BaseScene` and implement the required lifecycle methods
-   - Use constructor injection to get required services
-   - Follow the init/update/dispose pattern
+2. **Shader Optimization**:
+   ```typescript
+   // ❌ Bad practice - registers shaders multiple times
+   createSky(): void {
+     Effect.ShadersStore["skyVertexShader"] = vertexShader; // May recompile
+   }
 
-3. **Shader Development**:
-   - Store shaders in separate files (.vertex.ts and .fragment.ts)
-   - Include error handling for shader compilation
-   - Provide fallbacks for failed shader compilation
+   // ✅ Good practice - uses registry service
+   constructor(private shaderRegistry: ShaderRegistryService) {
+     this.shaderRegistry.registerShader('sky', vertexShader, fragmentShader);
+   }
+   ```
 
-4. **Performance Optimization**:
-   - Use appropriate mesh complexity (e.g., fewer segments for background elements)
-   - Implement quality scaling based on device capability
-   - Keep shader complexity in check for mobile compatibility
+3. **Time-Based Calculations**:
+   ```typescript
+   // ❌ Bad practice - duplicates calculations
+   update(): void {
+     const time = this.timeService.getWorldTime();
+     const sunFactor = this.calculateSunFactor(time); // Duplicates work
+   }
 
-## Getting Started
+   // ✅ Good practice - uses unified time state
+   update(): void {
+     const timeState = this.celestialService.getTimeState();
+     const sunFactor = timeState.dayFactor; // Pre-calculated
+   }
+   ```
+
+## Quick Start Guide
 
 1. **Installation**:
    ```bash
@@ -156,11 +223,13 @@ When extending Clearview, follow these guidelines:
    ```typescript
    @Injectable()
    export class MyNewScene extends BaseScene {
+     // Pre-allocate frequently used objects
+     private tempColor = new Color3(0, 0, 0);
+     
      constructor(
        private engineService: EngineService,
        private timeService: TimeService,
-       private cameraService: CameraService,
-       // other required services...
+       private celestialService: CelestialService
      ) {
        super(engineService);
      }
@@ -172,11 +241,12 @@ When extending Clearview, follow these guidelines:
      }
 
      update(deltaTime: number): void {
-       // Update your scene...
+       const timeState = this.celestialService.getTimeState();
+       // Update using timeState...
      }
 
      dispose(): void {
-       // Clean up resources...
+       // Clean up resources
        this.scene.dispose();
      }
    }
@@ -186,31 +256,51 @@ When extending Clearview, follow these guidelines:
    ```typescript
    export const appConfig: ApplicationConfig = {
      providers: [
-       // other providers...
-       MyNewScene,
-       provideRouter(routes)
+       provideZoneChangeDetection({ eventCoalescing: true }),
+       provideRouter(routes),
+       MyNewScene, // Register your scene
+       // Pre-register shaders
+       {
+         provide: APP_INITIALIZER,
+         useFactory: (registry: ShaderRegistryService) => () => {
+           registry.registerShader('myShader', vertexShader, fragmentShader);
+           return Promise.resolve();
+         },
+         deps: [ShaderRegistryService],
+         multi: true
+       }
      ]
    };
    ```
 
-## Performance Considerations
+## Version Compatibility
 
-Clearview is designed for performance across a range of devices:
+- **Angular**: 16.0.0+
+- **Babylon.js**: 5.0.0+
+- **TypeScript**: 4.8.0+
+- **RxJS**: 7.0.0+
 
-- **Memory Management**: All services implement proper disposal methods
-- **Adaptive Quality**: Scene elements can scale detail based on device capability
-- **Shader Optimization**: Shaders are designed with fallbacks for lower-end devices
-- **Asset Loading**: Assets are loaded asynchronously with proper error handling
+## Browser Support
 
-## Contributing
+- **Chrome**: 90+
+- **Firefox**: 88+
+- **Safari**: 14+
+- **Edge**: 90+
+- **Mobile**: iOS Safari 14+, Chrome for Android 90+
 
-Contributions are welcome! Please follow these guidelines:
+## Roadmap
 
-1. Follow the architectural patterns and naming conventions
-2. Include tests for new functionality
-3. Ensure performance is maintained across devices
-4. Document new features and APIs
+1. **Enhanced Input System**: Unified input handling for keyboard, mouse, and touch
+2. **Particle System**: Memory-efficient particle system for environmental effects
+3. **Audio System**: Spatial audio with dynamic mixing
+4. **GUI Service**: User interface framework optimized for 3D environments
+5. **Quality Settings System**: Adaptive quality based on device performance
+6. **Asset Management System**: Improved asset loading with caching and streaming
+7. **Post-Processing Pipeline**: Efficient multi-pass rendering
+8. **Physics Integration**: Optional physics system
+9. **Level Editor**: Visual editor for scenes
+10. **Documentation Portal**: Comprehensive documentation
 
 ---
 
-Clearview is an ongoing project focused on creating beautiful, performant 3D web experiences. We welcome collaboration and feedback from the community.
+Clearview is an ongoing project focused on creating beautiful, performant 3D web experiences.
