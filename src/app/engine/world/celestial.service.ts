@@ -13,13 +13,13 @@ export class CelestialService {
     private timeState: TimeState;
     private timeStateSubject = new BehaviorSubject<TimeState>(null!);
     
-    // Pre-allocated objects for calculations to reduce GC pressure
+    // Pre-allocated vectors/colors to reduce GC pressure
     private _sunDir = new Vector3(0, 0, 0);
     private _moonDir = new Vector3(0, 0, 0);
     private _sunColor = new Color3(0, 0, 0);
     private _moonColor = new Color3(0, 0, 0);
     
-    // Define key time points once as constants
+    // Key time points in 24h format
     private readonly KEY_TIMES = {
         midnight: 0.0,
         dawnStart: 5.0,
@@ -37,61 +37,42 @@ export class CelestialService {
     ) {
         // Initialize with default values
         this.timeState = {
-            worldTime: 0,
-            normalizedTime: 0,
-            dayFactor: 0,
-            nightFactor: 0,
-            dawnFactor: 0, 
-            duskFactor: 0,
-            starVisibility: 0,
-            sunVisibility: 0,
-            moonOpacity: 0,
-            sunHeight: 0,
-            moonHeight: 0,
-            sunIntensity: 0,
-            moonIntensity: 0,
+            worldTime: 0, normalizedTime: 0,
+            dayFactor: 0, nightFactor: 0, dawnFactor: 0, duskFactor: 0,
+            starVisibility: 0, sunVisibility: 0, moonOpacity: 0,
+            sunHeight: 0, moonHeight: 0,
+            sunIntensity: 0, moonIntensity: 0,
             continuousRotation: 0,
             keyTimes: this.KEY_TIMES
         };
         
-        // Initial calculation
-        this.updateTimeState();
+        this.updateTimeState(); // Initial calculation
     }
 
-    /**
-     * Updates all time-related state in a single calculation
-     * Should be called once per frame before other services use the data
-     */
+    // Updates all time-related state - call once per frame before other services use the data
     updateTimeState(): void {
         const worldTime = this.timeService.getWorldTime();
         const normalizedTime = (worldTime % 24) / 24; // 0-1 over 24-hour period
         
-        // Calculate sun angle
+        // Calculate sun position
         const sunAngle = (normalizedTime * 2.0 * Math.PI) - (0.5 * Math.PI);
-        
-        // Calculate sun position using pre-allocated vector
         const sunX = Math.cos(sunAngle);
         const sunY = Math.sin(sunAngle); // -1 at midnight, 0 at sunrise/sunset, +1 at noon
         const sunZ = 0.1; // Slight tilt for better shadows
         
-        // Reuse pre-allocated vectors instead of creating new ones
-        this._sunDir.set(sunX, sunY, sunZ);
-        this._sunDir.normalize();
+        // Set pre-allocated vectors
+        this._sunDir.set(sunX, sunY, sunZ).normalize();
+        this._moonDir.set(-sunX, -sunY, sunZ).normalize();
         
-        this._moonDir.set(-sunX, -sunY, sunZ);
-        this._moonDir.normalize();
+        // Calculate time period factors (0-1)
         
-        // Calculate period factors (0-1) for each time of day
-        
-        // Night period (Dusk End to Dawn Start, wrapping around midnight)
+        // Night period (Dusk End to Dawn Start)
         let nightFactor = 0;
         if (worldTime >= this.KEY_TIMES.duskEnd || worldTime <= this.KEY_TIMES.dawnStart) {
             if (worldTime >= this.KEY_TIMES.duskEnd) {
-                // Evening to midnight
-                nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.duskEnd + 2, worldTime);
+                nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.duskEnd + 2, worldTime); // Evening to midnight
             } else {
-                // Midnight to dawn start
-                nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.dawnStart - 2, worldTime);
+                nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.dawnStart - 2, worldTime); // Midnight to dawn
             }
         }
         
@@ -99,27 +80,25 @@ export class CelestialService {
         let dawnFactor = 0;
         if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.dawnEnd) {
             if (worldTime < this.KEY_TIMES.sunrise) {
-                // Dawn Start to Sunrise (ramp up)
-                dawnFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.sunrise, worldTime);
+                dawnFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.sunrise, worldTime); // Ramp up
             } else {
-                // Sunrise to Dawn End (ramp down)
-                dawnFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnEnd, this.KEY_TIMES.sunrise, worldTime);
+                dawnFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnEnd, this.KEY_TIMES.sunrise, worldTime); // Ramp down
             }
         }
         
         // Day period (Dawn End to Dusk Start)
         let dayFactor = 0;
         if (worldTime >= this.KEY_TIMES.dawnEnd && worldTime <= this.KEY_TIMES.duskStart) {
-            // Full day phase
+            // Calculate normalized day progress
             const dayProgress = (worldTime - this.KEY_TIMES.dawnEnd) / (this.KEY_TIMES.duskStart - this.KEY_TIMES.dawnEnd);
             
-            // Smoother transition at edges of day
+            // Smoother transition at day edges
             if (dayProgress < 0.1) {
                 dayFactor = this.mathUtils.smootherstep(0, 0.1, dayProgress);
             } else if (dayProgress > 0.9) {
                 dayFactor = this.mathUtils.smootherstep(1, 0.9, dayProgress);
             } else {
-                dayFactor = 1.0;
+                dayFactor = 1.0; // Full day
             }
         }
         
@@ -127,11 +106,9 @@ export class CelestialService {
         let duskFactor = 0;
         if (worldTime >= this.KEY_TIMES.duskStart && worldTime <= this.KEY_TIMES.duskEnd) {
             if (worldTime < this.KEY_TIMES.sunset) {
-                // Dusk Start to Sunset (ramp up)
-                duskFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskStart, this.KEY_TIMES.sunset, worldTime);
+                duskFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskStart, this.KEY_TIMES.sunset, worldTime); // Ramp up
             } else {
-                // Sunset to Dusk End (ramp down)
-                duskFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.sunset, worldTime);
+                duskFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.sunset, worldTime); // Ramp down
             }
         }
         
@@ -143,43 +120,32 @@ export class CelestialService {
             dayFactor /= totalFactor;
             duskFactor /= totalFactor;
         } else {
-            // Fallback if all factors are too small
-            dayFactor = 1.0;
+            dayFactor = 1.0; // Fallback if all factors are too small
         }
         
-        // Calculate sun visibility and intensity
-        let sunVisibility = 0;
-        if (worldTime >= this.KEY_TIMES.sunrise && worldTime <= this.KEY_TIMES.sunset) {
-            // Sun is visible from sunrise to sunset
-            sunVisibility = 1.0;
-        }
+        // Sun visibility and intensity (visible from sunrise to sunset)
+        let sunVisibility = (worldTime >= this.KEY_TIMES.sunrise && worldTime <= this.KEY_TIMES.sunset) ? 1.0 : 0.0;
         
         // Sun intensity varies throughout the day
         let sunIntensity = 0;
         if (sunVisibility > 0) {
-            // Base intensity when sun is visible
             if (worldTime < this.KEY_TIMES.noon) {
-                // Sunrise to noon: increase to max
-                sunIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, worldTime) * 1.5;
+                sunIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, worldTime) * 1.5; // Rise to max
             } else {
-                // Noon to sunset: decrease to min
-                sunIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.noon, worldTime) * 1.5;
+                sunIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.noon, worldTime) * 1.5; // Fall from max
             }
         }
         
-        // Calculate moon visibility and intensity
+        // Moon visibility and intensity
         
-        // Moon opacity
+        // Moon opacity (fades in after sunset, out before sunrise)
         let moonOpacity = 0;
         if (worldTime >= this.KEY_TIMES.sunset && worldTime <= this.KEY_TIMES.duskEnd) {
-            // Sunset to dusk end: fade in
-            moonOpacity = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime);
+            moonOpacity = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime); // Fade in
         } else if (worldTime >= this.KEY_TIMES.duskEnd || worldTime <= this.KEY_TIMES.dawnStart) {
-            // Fully visible during night
-            moonOpacity = 1.0;
+            moonOpacity = 1.0; // Fully visible at night
         } else if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.sunrise) {
-            // Dawn start to sunrise: fade out
-            moonOpacity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime);
+            moonOpacity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime); // Fade out
         }
         
         // Moon brightness
@@ -190,7 +156,7 @@ export class CelestialService {
         if (worldTime >= this.KEY_TIMES.sunset && worldTime <= this.KEY_TIMES.duskEnd) {
             // Sunset to dusk end: 0 to min
             moonIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime) * minMoonIntensity;
-        } else if (worldTime >= this.KEY_TIMES.duskEnd && worldTime <= this.KEY_TIMES.midnight + 24) { // Handle midnight wrapping
+        } else if (worldTime >= this.KEY_TIMES.duskEnd && worldTime <= this.KEY_TIMES.midnight + 24) {
             // Dusk end to midnight: min to max
             moonIntensity = this.mathUtils.lerp(minMoonIntensity, maxMoonIntensity, 
                 this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.midnight + 24, worldTime));
@@ -203,27 +169,23 @@ export class CelestialService {
             moonIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime) * minMoonIntensity;
         }
         
-        // Apply moon opacity to intensity - if moon isn't visible, intensity is 0
-        moonIntensity *= moonOpacity;
+        moonIntensity *= moonOpacity; // No intensity if moon isn't visible
         
-        // Star visibility
+        // Star visibility (fully visible at night, fade at dawn/dusk)
         let starVisibility = 0;
         if (worldTime >= this.KEY_TIMES.duskEnd || worldTime <= this.KEY_TIMES.dawnStart) {
-            // Fully visible during night
-            starVisibility = 1.0;
+            starVisibility = 1.0; // Fully visible at night
         } else if (worldTime >= this.KEY_TIMES.sunset && worldTime <= this.KEY_TIMES.duskEnd) {
-            // Sunset to dusk end: fade in
-            starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime);
+            starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime); // Fade in
         } else if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.sunrise) {
-            // Dawn start to sunrise: fade out
-            starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime);
+            starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime); // Fade out
         }
         
-        // Get current sun and moon colors (reuse color objects)
+        // Get current sun and moon colors
         this.getSunColor(worldTime, this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, this.KEY_TIMES.sunset, this._sunColor);
         this._moonColor.set(0.8 * moonOpacity, 0.8 * moonOpacity, 1.0 * moonOpacity);
         
-        // Update the time state object with all calculated values
+        // Update the time state with calculated values
         this.timeState = {
             worldTime,
             normalizedTime,
@@ -246,26 +208,18 @@ export class CelestialService {
         this.timeStateSubject.next(this.timeState);
     }
     
-    /**
-     * Returns the current time state
-     */
+    // Returns the current time state
     getTimeState(): TimeState {
         return this.timeState;
     }
     
-    /**
-     * Observable for the time state, notifies subscribers when state updates
-     */
+    // Observable for the time state, notifies subscribers when state updates
     observeTimeState(): Observable<TimeState> {
         return this.timeStateSubject.asObservable();
     }
     
-    /**
-     * Gets celestial positions for the current world time
-     * This method is kept for backward compatibility
-     */
+    // Gets celestial positions for the current world time (kept for backward compatibility)
     getCelestialPositions() {
-        // Return references to pre-allocated objects
         return {
             worldTime: this.timeState.worldTime,
             normalizedTime: this.timeState.normalizedTime,
@@ -292,39 +246,12 @@ export class CelestialService {
         };
     }
     
-    /**
-     * Determines if it's currently night time
-     */
-    isNight(): boolean {
-        return this.timeState.nightFactor > 0.5;
-    }
+    isNight(): boolean { return this.timeState.nightFactor > 0.5; }
+    isDay(): boolean { return this.timeState.dayFactor > 0.5; }
+    isDawn(): boolean { return this.timeState.dawnFactor > 0.5; }
+    isDusk(): boolean { return this.timeState.duskFactor > 0.5; }
     
-    /**
-     * Determines if it's currently day time
-     */
-    isDay(): boolean {
-        return this.timeState.dayFactor > 0.5;
-    }
-    
-    /**
-     * Determines if it's currently dawn
-     */
-    isDawn(): boolean {
-        return this.timeState.dawnFactor > 0.5;
-    }
-    
-    /**
-     * Determines if it's currently dusk
-     */
-    isDusk(): boolean {
-        return this.timeState.duskFactor > 0.5;
-    }
-    
-    /**
-     * Returns sun color based on time of day
-     * Using scientifically accurate colors for different phases
-     * Modified to use reference Color3 for better performance
-     */
+    // Returns sun color based on time of day using reference Color3 for better performance
     private getSunColor(time: number, sunrise: number, noon: number, sunset: number, colorRef: Color3): Color3 {
         // Scientific sun colors based on solar elevation
         const sunriseR = 1.0, sunriseG = 0.6, sunriseB = 0.3;  // Orange-gold at sunrise
@@ -353,9 +280,7 @@ export class CelestialService {
         return colorRef;
     }
     
-    /**
-     * Debug function to test celestial positions at specific times
-     */
+    // Debug function to test celestial positions at specific times
     debugCelestialPositions(): void {
         const times = [0, 5, 6, 7, 12, 17, 18, 19, 24];
         const labels = ["Midnight", "Dawn Start", "Sunrise", "Dawn End", "Noon", 
@@ -364,17 +289,13 @@ export class CelestialService {
         console.group("Celestial Positions Debug");
         for (let i = 0; i < times.length; i++) {
             const time = times[i];
-            // Store current time
-            const currentTime = this.timeService.getWorldTime();
+            const currentTime = this.timeService.getWorldTime(); // Store current time
             
             // Override time for testing
             const timeService = this.timeService as any;
             timeService.elapsed = (time / 24) * timeService.dayDurationInSeconds;
             
-            // Update time state for debug
-            this.updateTimeState();
-            
-            // Get the state for this time point
+            this.updateTimeState(); // Update time state for debug
             const state = this.getTimeState();
             
             console.log(`${labels[i]} (${time}h):`, {

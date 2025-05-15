@@ -26,20 +26,20 @@ export class SkyService {
       console.warn(`Shader "${this.SHADER_NAME}" not found in registry. Sky may not render correctly.`);
     }
     
-    // Create the sky dome
+    // Create sky dome
     this.skyDome = MeshBuilder.CreateSphere('skyDome', {
       diameter: 1000,
       segments: 48,
       sideOrientation: Mesh.BACKSIDE
     }, scene);
     
-    // Optimization properties
+    // Optimize sky dome
     this.skyDome.infiniteDistance = true;
     this.skyDome.renderingGroupId = 0;
     this.skyDome.isPickable = false;
     this.skyDome.freezeWorldMatrix();
     
-    // Create the shader material
+    // Create shader material
     this.skyMaterial = new ShaderMaterial(this.SHADER_NAME, scene, {
       vertex: this.SHADER_NAME,
       fragment: this.SHADER_NAME
@@ -53,29 +53,19 @@ export class SkyService {
       ]
     });
     
-    // Configure material
     this.skyMaterial.backFaceCulling = false;
-    
-    // Apply initial uniforms
-    this.updateShaderUniforms();
-    
-    // Apply material to dome
+    this.updateShaderUniforms(); // Apply initial uniforms
     this.skyDome.material = this.skyMaterial;
   }
 
   update(): void {
-    if (!this.skyMaterial) {
-      return;
+    if (this.skyMaterial) {
+      this.updateShaderUniforms();
     }
-    
-    this.updateShaderUniforms();
   }
   
-  // Separate method for updating uniforms to avoid code duplication
   private updateShaderUniforms(): void {
-    if (!this.skyMaterial) {
-      return;
-    }
+    if (!this.skyMaterial) return;
     
     const timeState = this.celestialService.getTimeState();
     const { sunDir, moonDir } = this.celestialService.getCelestialPositions();

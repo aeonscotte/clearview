@@ -35,20 +35,12 @@ export interface FreeCameraOptions {
     angularSensibility?: number;
 }
 
-/**
- * Service for creating and managing cameras
- */
+// Service for creating and managing cameras
 @Injectable({
   providedIn: 'root'
 })
 export class CameraService {
-    /**
-     * Creates an ArcRotateCamera with intuitive orbit controls
-     * @param scene The BabylonJS scene
-     * @param canvas The HTML canvas element for pointer inputs
-     * @param options Camera configuration options
-     * @returns The created camera
-     */
+    // Creates an ArcRotateCamera with intuitive orbit controls
     createArcRotateCamera(scene: Scene, canvas: HTMLCanvasElement, options: ArcRotateCameraOptions = {}): ArcRotateCamera {
         const {
             name = 'arcRotateCamera',
@@ -102,13 +94,7 @@ export class CameraService {
         return camera;
     }
     
-    /**
-     * Creates a FreeCamera with WASD/arrow key movement controls
-     * @param scene The BabylonJS scene
-     * @param canvas The HTML canvas element for pointer inputs
-     * @param options Camera configuration options
-     * @returns The created camera
-     */
+    // Creates a FreeCamera with WASD/arrow key movement controls
     createFreeCamera(scene: Scene, canvas: HTMLCanvasElement, options: FreeCameraOptions = {}): FreeCamera {
         const {
             name = 'freeCamera',
@@ -154,12 +140,7 @@ export class CameraService {
         return camera;
     }
     
-    /**
-     * Updates the camera target and position to focus on a specific point
-     * @param camera The camera to update
-     * @param targetPosition The position to focus on
-     * @param distance Optional distance to maintain from target
-     */
+    // Updates the camera target and position to focus on a specific point
     focusOn(camera: TargetCamera, targetPosition: Vector3, distance?: number): void {
         if (camera instanceof ArcRotateCamera && distance !== undefined) {
             // For ArcRotateCamera, set target and radius
@@ -179,13 +160,7 @@ export class CameraService {
         }
     }
     
-    /**
-     * Animates the camera to a new position and target
-     * @param camera The camera to animate
-     * @param targetPosition The position to focus on
-     * @param cameraPosition The new camera position
-     * @param duration Animation duration in milliseconds
-     */
+    // Animates the camera to a new position and target
     animateTo(camera: TargetCamera, targetPosition: Vector3, cameraPosition: Vector3, duration = 1000): void {
         const scene = camera.getScene();
         
@@ -208,10 +183,7 @@ export class CameraService {
         );
     }
     
-    /**
-     * Creates a position animation for a camera
-     * @private
-     */
+    // Creates a position animation for a camera
     private createPositionAnimation(camera: TargetCamera, targetPosition: Vector3) {
         // Animation creation would go here, using Babylon's Animation class
         // This is a simplified implementation
@@ -232,10 +204,7 @@ export class CameraService {
         return animation;
     }
     
-    /**
-     * Creates a target animation for a camera
-     * @private
-     */
+    // Creates a target animation for a camera
     private createTargetAnimation(camera: TargetCamera, targetPosition: Vector3) {
         // Different handling based on camera type
         let propertyPath = "target";

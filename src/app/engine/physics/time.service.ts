@@ -9,7 +9,7 @@ export class TimeService {
     private lastFrameTime = performance.now();
     private elapsed = 0;
     private deltaSec = 0;
-    public readonly dayDurationInSeconds = 1440; // [seconds] day-night cycle length
+    public readonly dayDurationInSeconds = 1440; // Day-night cycle length in seconds
     private continuousRotation = 0; // Track continuous rotation angle
     private starRotationFactor: number; // Factor to scale star rotation properly
 
@@ -24,27 +24,24 @@ export class TimeService {
     update(deltaTime?: number): void {
         const now = performance.now();
         
-        // Frame-rate independent time calculation
+        // Calculate delta time in seconds
         if (deltaTime !== undefined) {
-            // Use provided deltaTime (in milliseconds) if available
-            this.deltaSec = deltaTime * 0.001; // Convert to seconds
+            this.deltaSec = deltaTime * 0.001; // Convert ms to seconds if provided
         } else {
-            // Calculate delta if not provided (fallback)
-            this.deltaSec = (now - this.lastFrameTime) * 0.001;
+            this.deltaSec = (now - this.lastFrameTime) * 0.001; // Fallback calculation
         }
         
         // Add delta to elapsed time (frame-rate independent)
         this.elapsed += this.deltaSec;
         
-        // Update continuous rotation using scientifically accurate star rotation speed
-        // This simulates Earth's rotation relative to the stars (sidereal rotation)
+        // Update continuous rotation for Earth's sidereal rotation relative to stars
         this.continuousRotation += this.deltaSec * this.starRotationFactor;
         
         this.lastFrameTime = now;
     }
 
+    // Convert elapsed seconds to hours (0-24)
     getWorldTime(): number {
-        // Convert elapsed seconds to hours (0-24)
         const hoursPerSecond = 24 / this.dayDurationInSeconds;
         return (this.elapsed * hoursPerSecond) % 24;
     }
@@ -62,14 +59,13 @@ export class TimeService {
         return this.continuousRotation;
     }
 
-    // Helper method to set time to a specific hour
+    // Helper to set time to a specific hour (0-24)
     setWorldTime(hour: number): void {
         hour = hour % 24; // Ensure hour is in 0-24 range
         this.elapsed = (hour / 24) * this.dayDurationInSeconds;
         this.startTime = performance.now() - (this.elapsed * 1000);
 
-        // Update continuous rotation to match the new time while preserving
-        // the realistic rotation mapping
+        // Update continuous rotation to match the new time while preserving realistic rotation
         this.continuousRotation = this.elapsed * this.starRotationFactor;
     }
 }

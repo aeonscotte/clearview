@@ -60,93 +60,55 @@ export class LightService {
     }
 
     update(): void {
-        // Get all celestial data from the celestial service
+        // Get celestial data
         const celestialData = this.celestialService.getCelestialPositions();
         const {
-            sunDir,
-            moonDir,
-            sunHeight,
-            moonHeight,
-            sunVisibility,
-            moonOpacity,
-            sunIntensity,
-            moonIntensity,
-            sunColor,
-            moonColor,
-            keyTimes,
-            worldTime
+            sunDir, moonDir, sunHeight, moonHeight, sunVisibility,
+            moonOpacity, sunIntensity, moonIntensity, sunColor,
+            moonColor, keyTimes, worldTime
         } = celestialData;
 
         // Update light directions
         this.sunLight.direction = sunDir.scale(-1); // Lights point toward objects
         this.moonLight.direction = moonDir.scale(-1);
 
-        // Sun light - only active when sun is visible
+        // Update sun light - only active when sun is visible
         if (sunVisibility > 0 && sunHeight > -0.05) {
-            // Update sun properties
             this.sunLight.intensity = sunIntensity;
             this.sunLight.diffuse = sunColor;
             this.sunLight.setEnabled(true);
         } else {
-            // Disable sun completely when not visible
             this.sunLight.setEnabled(false);
             this.sunLight.intensity = 0;
         }
 
-        // Moon light - only active when moon is visible with some opacity
+        // Update moon light - only active when moon is visible
         if (moonOpacity > 0 && moonHeight > -0.05) {
-            // Update moon properties
             this.moonLight.intensity = moonIntensity;
             this.moonLight.diffuse = moonColor;
             this.moonLight.setEnabled(true);
         } else {
-            // Disable moon completely when not visible
             this.moonLight.setEnabled(false);
             this.moonLight.intensity = 0;
         }
 
-        // Calculate sky colors for this time point
+        // Calculate sky colors and update with smooth transitions
         this.calculateSkyColors(worldTime, keyTimes);
-
-        // Update current colors with smooth transition to targets
         this.updateColorTransitions();
-
-        // Calculate ambient lighting from sky colors
         this.updateAmbientLightFromSky(celestialData);
     }
 
-    /**
-     * Calculate the target zenith and horizon colors based on time of day
-     * Using keyframe interpolation for smoother transitions
-     */
+    // Calculate target zenith and horizon colors based on time of day
     private calculateSkyColors(worldTime: number, keyTimes: any): void {
-        const {
-            midnight,
-            dawnStart,
-            sunrise,
-            dawnEnd,
-            noon,
-            duskStart,
-            sunset,
-            duskEnd
-        } = keyTimes;
+        const { midnight, dawnStart, sunrise, dawnEnd, noon, duskStart, sunset, duskEnd } = keyTimes;
 
         // Scientifically accurate sky colors for each time period
-        // These should match the colors used in the sky shader
-
-        // Night colors - deep blue to dark blue
         const nightZenith = new Color3(0.015, 0.015, 0.04);    // Almost black with hint of blue
         const nightHorizon = new Color3(0.04, 0.04, 0.08);     // Deep blue
-
-        // Sunrise/dawn colors
         const sunriseZenith = new Color3(0.12, 0.15, 0.32);    // Deepening blue with purple hints
         const sunriseHorizon = new Color3(0.92, 0.58, 0.32);   // Golden orange
-
-        // Day colors - based on clear sky spectra
         const dayZenith = new Color3(0.18, 0.26, 0.48);        // Rich blue
         const dayHorizon = new Color3(0.7, 0.8, 0.95);         // Pale blue-white
-
-        // Sunset/dusk colors
         const sunsetZenith = new Color3(0.15, 0.12, 0.25);     // Purple-blue
         const sunsetHorizon = new Color3(0.9, 0.35, 0.15);     // Deep orange-red
 
@@ -165,11 +127,10 @@ export class LightService {
         // Find which key points we're between
         let startIdx = 0;
         while (startIdx < keyPoints.length - 1) {
-            // Handle day wrapping
             let nextTime = keyPoints[startIdx + 1].time;
             let currentTime = keyPoints[startIdx].time;
 
-            // If we cross midnight
+            // Handle day wrapping - if we cross midnight
             if (nextTime < currentTime) {
                 if (worldTime >= 0 && worldTime < nextTime) {
                     worldTime += 24; // Wrap time
@@ -190,14 +151,13 @@ export class LightService {
 
         const endIdx = startIdx + 1;
 
-        // Calculate interpolation factor
+        // Calculate interpolation factor and interpolate colors
         let t = this.mathUtils.smootherstep(
             keyPoints[startIdx].time,
             keyPoints[endIdx].time,
             worldTime
         );
 
-        // Interpolate colors
         this.targetZenithColor = Color3.Lerp(
             keyPoints[startIdx].zenith,
             keyPoints[endIdx].zenith,
@@ -211,18 +171,14 @@ export class LightService {
         );
     }
 
-    /**
-     * Update current colors with smooth transition to targets
-     */
+    // Update current colors with smooth transition to targets
     private updateColorTransitions(): void {
-        // Smoothly transition zenith color
         this.currentZenithColor = Color3.Lerp(
             this.currentZenithColor,
             this.targetZenithColor,
             this.colorTransitionSpeed
         );
 
-        // Smoothly transition horizon color
         this.currentHorizonColor = Color3.Lerp(
             this.currentHorizonColor,
             this.targetHorizonColor,
@@ -230,72 +186,54 @@ export class LightService {
         );
     }
 
-    /**
-     * Update ambient light using sky colors and celestial data
-     * Using a unified continuous function for smoother transitions
-     */
+    // Update ambient light using sky colors and celestial data
     private updateAmbientLightFromSky(celestialData: any): void {
         const { moonIntensity, worldTime, keyTimes, sunHeight } = celestialData;
         const { midnight, dawnStart, sunrise, dawnEnd, noon, duskStart, sunset, duskEnd } = keyTimes;
 
         // PART 1: AMBIENT INTENSITY - Single continuous function approach
-        // ---------------------------------------------------------------
-
-        // Create a normalized day cycle (0-1)
-        const normalizedTime = (worldTime / 24) % 1;
-
+        const normalizedTime = (worldTime / 24) % 1; // 0-1 normalized day cycle
+        
         // Base intensity curve - sinusoidal with peak at noon
-        // This creates a smooth intensity curve that peaks at midday and bottoms at midnight
         let baseIntensity = 0.5 - 0.5 * Math.cos(normalizedTime * Math.PI * 2);
-
-        // Scale to our desired range (0.04 at night, 0.23 at noon)
-        let ambientIntensity = 0.04 + baseIntensity * 0.19;
+        let ambientIntensity = 0.04 + baseIntensity * 0.19; // Scale to desired range (0.04-0.23)
 
         // Add moon influence at night (smooth transition)
         const nightFactor = this.mathUtils.getNightFactor(worldTime, sunrise, sunset);
         ambientIntensity += moonIntensity * 0.08 * nightFactor;
 
         // PART 2: AMBIENT COLOR - Bell curve blending approach
-        // ---------------------------------------------------
-
-        // Start with base sky color blend
         const dayFactorForColor = 1.0 - nightFactor;
+        
+        // Start with base sky color blend
         let ambientColor = Color3.Lerp(
             this.currentZenithColor,
             this.currentHorizonColor,
             0.5 + dayFactorForColor * 0.15 // 0.5 at night to 0.65 during day
         );
 
-        // Define our key colors
+        // Define key colors
         const dayColor = new Color3(0.9, 0.9, 0.95);       // Slightly off-white
         const sunriseColor = new Color3(0.75, 0.6, 0.43);  // Warm golden
         const sunsetColor = new Color3(0.7, 0.45, 0.3);    // Warm amber
         const nightColor = new Color3(0.1, 0.15, 0.35);    // Cool blue
 
-        // Calculate bell curve weights for each period
-        // Bell curves naturally create smooth transitions
+        // Calculate bell curve weights for smooth blending
         const dayWeight = this.mathUtils.bellCurve(worldTime, noon, 6.0);
         const sunriseWeight = this.mathUtils.bellCurve(worldTime, sunrise + 0.5, 1.0);
         const sunsetWeight = this.mathUtils.bellCurve(worldTime, sunset - 0.5, 1.0);
+        const nightWeight = nightFactor; // Smooth step from after sunset to before sunrise
 
-        // Night weight is slightly different - we use a smooth step from 
-        // after sunset to before sunrise
-        const nightWeight = nightFactor;
-
-        // Blend the colors using our bell curve weights
-        // The influence factors control how strongly each color affects the final result
+        // Blend the colors using weights - influence factors control blend strength
         if (dayWeight > 0) {
             ambientColor = Color3.Lerp(ambientColor, dayColor, dayWeight * 0.45);
         }
-
         if (sunriseWeight > 0) {
             ambientColor = Color3.Lerp(ambientColor, sunriseColor, sunriseWeight * 0.6);
         }
-
         if (sunsetWeight > 0) {
             ambientColor = Color3.Lerp(ambientColor, sunsetColor, sunsetWeight * 0.6);
         }
-
         if (nightWeight > 0) {
             ambientColor = Color3.Lerp(ambientColor, nightColor, nightWeight * 0.5);
         }

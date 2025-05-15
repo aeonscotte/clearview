@@ -42,10 +42,7 @@ export class Scene001 extends BaseScene {
         console.log('Scene001: Initializing scene');
         this.scene = new Scene(this.engineService.getEngine());
         
-        // Register shaders needed for this scene
         this.registerShaders();
-        
-        // Setup scene components
         this.setupCamera(canvas);
         this.setupLighting();
         this.setupTerrain();
@@ -54,13 +51,10 @@ export class Scene001 extends BaseScene {
         return this.scene;
     }
 
-    /**
-     * Register all shaders needed for this scene
-     */
+    // Register all shaders needed for this scene
     private registerShaders(): void {
         console.log('Scene001: Registering shaders');
         
-        // Register sky shader
         const success = this.shaderRegistry.registerShader(
             'enhancedSky', 
             skyVertexShader,
@@ -121,16 +115,9 @@ export class Scene001 extends BaseScene {
     }
 
     update(deltaTime: number): void {
-        // Pass deltaTime to TimeService for frame-rate independent updates
+        // Update services in the correct order
         this.timeService.update(deltaTime);
-        
-        // Then update celestial state once - this calculates all time factors
         this.celestialService.updateTimeState();
-        
-        // Then update services that depend on the celestial state
-        // 1. Light service (calculates sky colors)
-        // 2. Sky service (uses light information)
-        // 3. Atmosphere service (uses light information for fog)
         this.lightService.update();
         this.skyService.update();
         this.atmosphereService.update(this.scene);
