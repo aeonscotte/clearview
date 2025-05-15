@@ -4,285 +4,327 @@ import { Scene } from '@babylonjs/core/scene';
 import { DirectionalLight, HemisphericLight, Vector3, Color3, ShadowGenerator } from '@babylonjs/core';
 import { TimeService } from '../physics/time.service';
 import { CelestialService } from './celestial.service';
+import { MathUtils } from '../utils/math-utils.service';
 
 @Injectable({
-  providedIn: 'root'
+    providedIn: 'root'
 })
 export class LightService {
-  private sunLight!: DirectionalLight;
-  private moonLight!: DirectionalLight;
-  private skyGlowLight!: HemisphericLight;
-  private shadowGenerator!: ShadowGenerator;
+    private sunLight!: DirectionalLight;
+    private moonLight!: DirectionalLight;
+    private skyGlowLight!: HemisphericLight;  // Ambient sky glow
+    private shadowGenerator!: ShadowGenerator;
 
-  // Reuse color objects for transitions
-  private currentZenithColor = new Color3(0, 0, 0);
-  private currentHorizonColor = new Color3(0, 0, 0);
-  private targetZenithColor = new Color3(0, 0, 0);
-  private targetHorizonColor = new Color3(0, 0, 0);
-  private colorTransitionSpeed = 0.05;
-  
-  // Pre-defined key time colors - reused for all calculations
-  private nightZenith = new Color3(0.015, 0.015, 0.04);
-  private nightHorizon = new Color3(0.04, 0.04, 0.08);
-  private sunriseZenith = new Color3(0.12, 0.15, 0.32);
-  private sunriseHorizon = new Color3(0.92, 0.58, 0.32);
-  private dayZenith = new Color3(0.18, 0.26, 0.48);
-  private dayHorizon = new Color3(0.7, 0.8, 0.95);
-  private sunsetZenith = new Color3(0.15, 0.12, 0.25);
-  private sunsetHorizon = new Color3(0.9, 0.35, 0.15);
-  
-  // Reusable working colors
-  private tempColor = new Color3(0, 0, 0);
-  private ambientColor = new Color3(0, 0, 0);
-  private groundTint = new Color3(0, 0, 0);
-  
-  // Reusable return objects for getSkyColors
-  private returnZenith = new Color3(0, 0, 0);
-  private returnHorizon = new Color3(0, 0, 0);
+    // Sky color cache for smooth transitions
+    private currentZenithColor: Color3 = new Color3(0, 0, 0);
+    private currentHorizonColor: Color3 = new Color3(0, 0, 0);
+    private targetZenithColor: Color3 = new Color3(0, 0, 0);
+    private targetHorizonColor: Color3 = new Color3(0, 0, 0);
+    private colorTransitionSpeed: number = 0.05;
 
-  constructor(
-    private timeService: TimeService,
-    private celestialService: CelestialService
-  ) {}
+    constructor(
+        private timeService: TimeService,
+        private celestialService: CelestialService,
+        private mathUtils: MathUtils
+    ) { }
 
-  createLights(scene: Scene): void {
-    // Sun light - warm daylight
-    this.sunLight = new DirectionalLight("SunLight", new Vector3(0, -1, 0), scene);
-    this.sunLight.intensity = 0;
-    this.sunLight.diffuse = new Color3(1.0, 0.95, 0.8);
-    this.sunLight.specular = new Color3(1.0, 0.98, 0.8);
-    this.sunLight.shadowEnabled = true;
+    createLights(scene: Scene): void {
+        // Sun light - warm daylight
+        this.sunLight = new DirectionalLight("SunLight", new Vector3(0, -1, 0), scene);
+        this.sunLight.intensity = 0; // Start disabled
+        this.sunLight.diffuse = new Color3(1.0, 0.95, 0.8);
+        this.sunLight.specular = new Color3(1.0, 0.98, 0.8);
+        this.sunLight.shadowEnabled = true;
 
-    // Shadow configuration
-    this.shadowGenerator = new ShadowGenerator(1024, this.sunLight);
-    this.shadowGenerator.useBlurExponentialShadowMap = true;
-    this.shadowGenerator.blurScale = 2;
-    this.shadowGenerator.setDarkness(0.3);
+        // Shadow configuration
+        this.shadowGenerator = new ShadowGenerator(1024, this.sunLight);
+        this.shadowGenerator.useBlurExponentialShadowMap = true;
+        this.shadowGenerator.blurScale = 2;
+        this.shadowGenerator.setDarkness(0.3);
 
-    // Moon light
-    this.moonLight = new DirectionalLight("MoonLight", new Vector3(0, -1, 0), scene);
-    this.moonLight.intensity = 0;
-    this.moonLight.diffuse = new Color3(0.5, 0.5, 0.8);
-    this.moonLight.specular = new Color3(0.2, 0.2, 0.4);
+        // Moon light - cool blue moonlight
+        this.moonLight = new DirectionalLight("MoonLight", new Vector3(0, -1, 0), scene);
+        this.moonLight.intensity = 0; // Start disabled
+        this.moonLight.diffuse = new Color3(0.5, 0.5, 0.8);
+        this.moonLight.specular = new Color3(0.2, 0.2, 0.4);
 
-    // Sky glow light
-    this.skyGlowLight = new HemisphericLight("SkyGlowLight", new Vector3(0, 1, 0), scene);
-    this.skyGlowLight.intensity = 0.5;
-    this.skyGlowLight.diffuse = new Color3(0.3, 0.3, 0.4);
-    this.skyGlowLight.groundColor = new Color3(0.1, 0.1, 0.15);
-    this.skyGlowLight.specular = new Color3(0, 0, 0);
+        // Sky glow light - hemispheric light for ambient sky illumination
+        this.skyGlowLight = new HemisphericLight("SkyGlowLight", new Vector3(0, 1, 0), scene);
+        this.skyGlowLight.intensity = 0.5; // Will be updated dynamically
+        this.skyGlowLight.diffuse = new Color3(0.3, 0.3, 0.4); // Will be derived from sky colors
+        this.skyGlowLight.groundColor = new Color3(0.1, 0.1, 0.15); // Darker for ground reflection
+        this.skyGlowLight.specular = new Color3(0, 0, 0); // No specular from ambient sky glow
 
-    // Initial update
-    this.update();
-  }
-
-  update(): void {
-    const celestialData = this.celestialService.getCelestialPositions();
-    const {
-      sunDir, moonDir, sunHeight, moonHeight, sunVisibility, 
-      moonOpacity, sunIntensity, moonIntensity, sunColor, 
-      moonColor, keyTimes, worldTime
-    } = celestialData;
-
-    // Update light directions - avoid new Vector3 creation
-    this.sunLight.direction.copyFrom(sunDir).scaleInPlace(-1);
-    this.moonLight.direction.copyFrom(moonDir).scaleInPlace(-1);
-
-    // Sun light update
-    if (sunVisibility > 0 && sunHeight > -0.05) {
-      this.sunLight.intensity = sunIntensity;
-      // Avoid creating new Color3 by copying
-      this.sunLight.diffuse.copyFrom(sunColor);
-      this.sunLight.setEnabled(true);
-    } else {
-      this.sunLight.setEnabled(false);
-      this.sunLight.intensity = 0;
+        // Initial update to set light properties
+        this.update();
     }
 
-    // Moon light update
-    if (moonOpacity > 0 && moonHeight > -0.05) {
-      this.moonLight.intensity = moonIntensity;
-      this.moonLight.diffuse.copyFrom(moonColor);
-      this.moonLight.setEnabled(true);
-    } else {
-      this.moonLight.setEnabled(false);
-      this.moonLight.intensity = 0;
+    update(): void {
+        // Get all celestial data from the celestial service
+        const celestialData = this.celestialService.getCelestialPositions();
+        const {
+            sunDir,
+            moonDir,
+            sunHeight,
+            moonHeight,
+            sunVisibility,
+            moonOpacity,
+            sunIntensity,
+            moonIntensity,
+            sunColor,
+            moonColor,
+            keyTimes,
+            worldTime
+        } = celestialData;
+
+        // Update light directions
+        this.sunLight.direction = sunDir.scale(-1); // Lights point toward objects
+        this.moonLight.direction = moonDir.scale(-1);
+
+        // Sun light - only active when sun is visible
+        if (sunVisibility > 0 && sunHeight > -0.05) {
+            // Update sun properties
+            this.sunLight.intensity = sunIntensity;
+            this.sunLight.diffuse = sunColor;
+            this.sunLight.setEnabled(true);
+        } else {
+            // Disable sun completely when not visible
+            this.sunLight.setEnabled(false);
+            this.sunLight.intensity = 0;
+        }
+
+        // Moon light - only active when moon is visible with some opacity
+        if (moonOpacity > 0 && moonHeight > -0.05) {
+            // Update moon properties
+            this.moonLight.intensity = moonIntensity;
+            this.moonLight.diffuse = moonColor;
+            this.moonLight.setEnabled(true);
+        } else {
+            // Disable moon completely when not visible
+            this.moonLight.setEnabled(false);
+            this.moonLight.intensity = 0;
+        }
+
+        // Calculate sky colors for this time point
+        this.calculateSkyColors(worldTime, keyTimes);
+
+        // Update current colors with smooth transition to targets
+        this.updateColorTransitions();
+
+        // Calculate ambient lighting from sky colors
+        this.updateAmbientLightFromSky(celestialData);
     }
 
-    // Update sky colors
-    this.calculateSkyColors(worldTime, keyTimes);
-    this.updateColorTransitions();
-    this.updateAmbientLightFromSky(celestialData);
-  }
+    /**
+     * Calculate the target zenith and horizon colors based on time of day
+     * Using keyframe interpolation for smoother transitions
+     */
+    private calculateSkyColors(worldTime: number, keyTimes: any): void {
+        const {
+            midnight,
+            dawnStart,
+            sunrise,
+            dawnEnd,
+            noon,
+            duskStart,
+            sunset,
+            duskEnd
+        } = keyTimes;
 
-  private calculateSkyColors(worldTime: number, keyTimes: any): void {
-    const { midnight, dawnStart, sunrise, dawnEnd, noon, duskStart, sunset, duskEnd } = keyTimes;
+        // Scientifically accurate sky colors for each time period
+        // These should match the colors used in the sky shader
 
-    // Define our keypoints array
-    // Use references to pre-created colors instead of creating new ones
-    const keyPoints = [
-      { time: midnight, zenith: this.nightZenith, horizon: this.nightHorizon },
-      { time: dawnStart, zenith: this.nightZenith, horizon: this.nightHorizon },
-      { time: sunrise, zenith: this.sunriseZenith, horizon: this.sunriseHorizon },
-      { time: dawnEnd, zenith: this.dayZenith, horizon: this.dayHorizon },
-      { time: duskStart, zenith: this.dayZenith, horizon: this.dayHorizon },
-      { time: sunset, zenith: this.sunsetZenith, horizon: this.sunsetHorizon },
-      { time: duskEnd, zenith: this.nightZenith, horizon: this.nightHorizon },
-      { time: midnight + 24, zenith: this.nightZenith, horizon: this.nightHorizon }
-    ];
+        // Night colors - deep blue to dark blue
+        const nightZenith = new Color3(0.015, 0.015, 0.04);    // Almost black with hint of blue
+        const nightHorizon = new Color3(0.04, 0.04, 0.08);     // Deep blue
 
-    // Find which key points we're between
-    let startIdx = 0;
-    while (startIdx < keyPoints.length - 1) {
-      let nextTime = keyPoints[startIdx + 1].time;
-      let currentTime = keyPoints[startIdx].time;
+        // Sunrise/dawn colors
+        const sunriseZenith = new Color3(0.12, 0.15, 0.32);    // Deepening blue with purple hints
+        const sunriseHorizon = new Color3(0.92, 0.58, 0.32);   // Golden orange
 
-      // Handle day wrapping
-      if (nextTime < currentTime) {
-        if (worldTime >= 0 && worldTime < nextTime) worldTime += 24;
-        nextTime += 24;
-      }
+        // Day colors - based on clear sky spectra
+        const dayZenith = new Color3(0.18, 0.26, 0.48);        // Rich blue
+        const dayHorizon = new Color3(0.7, 0.8, 0.95);         // Pale blue-white
 
-      if (worldTime >= currentTime && worldTime < nextTime) break;
-      startIdx++;
+        // Sunset/dusk colors
+        const sunsetZenith = new Color3(0.15, 0.12, 0.25);     // Purple-blue
+        const sunsetHorizon = new Color3(0.9, 0.35, 0.15);     // Deep orange-red
+
+        // Define key points for interpolation
+        const keyPoints = [
+            { time: midnight, zenith: nightZenith, horizon: nightHorizon },
+            { time: dawnStart, zenith: nightZenith, horizon: nightHorizon },
+            { time: sunrise, zenith: sunriseZenith, horizon: sunriseHorizon },
+            { time: dawnEnd, zenith: dayZenith, horizon: dayHorizon },
+            { time: duskStart, zenith: dayZenith, horizon: dayHorizon },
+            { time: sunset, zenith: sunsetZenith, horizon: sunsetHorizon },
+            { time: duskEnd, zenith: nightZenith, horizon: nightHorizon },
+            { time: midnight + 24, zenith: nightZenith, horizon: nightHorizon } // Full circle
+        ];
+
+        // Find which key points we're between
+        let startIdx = 0;
+        while (startIdx < keyPoints.length - 1) {
+            // Handle day wrapping
+            let nextTime = keyPoints[startIdx + 1].time;
+            let currentTime = keyPoints[startIdx].time;
+
+            // If we cross midnight
+            if (nextTime < currentTime) {
+                if (worldTime >= 0 && worldTime < nextTime) {
+                    worldTime += 24; // Wrap time
+                }
+                nextTime += 24; // Wrap key time
+            }
+
+            if (worldTime >= currentTime && worldTime < nextTime) {
+                break; // Found our range
+            }
+            startIdx++;
+        }
+
+        // If we went past the end, wrap around
+        if (startIdx >= keyPoints.length - 1) {
+            startIdx = 0;
+        }
+
+        const endIdx = startIdx + 1;
+
+        // Calculate interpolation factor
+        let t = this.mathUtils.smootherstep(
+            keyPoints[startIdx].time,
+            keyPoints[endIdx].time,
+            worldTime
+        );
+
+        // Interpolate colors
+        this.targetZenithColor = Color3.Lerp(
+            keyPoints[startIdx].zenith,
+            keyPoints[endIdx].zenith,
+            t
+        );
+
+        this.targetHorizonColor = Color3.Lerp(
+            keyPoints[startIdx].horizon,
+            keyPoints[endIdx].horizon,
+            t
+        );
     }
 
-    // Handle wrapping
-    if (startIdx >= keyPoints.length - 1) startIdx = 0;
-    const endIdx = startIdx + 1;
+    /**
+     * Update current colors with smooth transition to targets
+     */
+    private updateColorTransitions(): void {
+        // Smoothly transition zenith color
+        this.currentZenithColor = Color3.Lerp(
+            this.currentZenithColor,
+            this.targetZenithColor,
+            this.colorTransitionSpeed
+        );
 
-    // Calculate interpolation factor
-    const t = this.smootherstep(keyPoints[startIdx].time, keyPoints[endIdx].time, worldTime);
-
-    // Use LerpToRef to avoid creating new objects
-    Color3.LerpToRef(keyPoints[startIdx].zenith, keyPoints[endIdx].zenith, t, this.targetZenithColor);
-    Color3.LerpToRef(keyPoints[startIdx].horizon, keyPoints[endIdx].horizon, t, this.targetHorizonColor);
-  }
-
-  private updateColorTransitions(): void {
-    // Use LerpToRef to modify existing objects
-    Color3.LerpToRef(this.currentZenithColor, this.targetZenithColor, this.colorTransitionSpeed, this.currentZenithColor);
-    Color3.LerpToRef(this.currentHorizonColor, this.targetHorizonColor, this.colorTransitionSpeed, this.currentHorizonColor);
-  }
-
-  private updateAmbientLightFromSky(celestialData: any): void {
-    const { moonIntensity, worldTime, keyTimes, sunHeight } = celestialData;
-    const { sunrise, sunset, noon } = keyTimes;
-
-    // Calculate base intensity
-    const normalizedTime = (worldTime / 24) % 1;
-    let baseIntensity = 0.5 - 0.5 * Math.cos(normalizedTime * Math.PI * 2);
-    let ambientIntensity = 0.04 + baseIntensity * 0.19;
-
-    // Add moon influence
-    const nightFactor = this.getNightFactor(worldTime, sunrise, sunset);
-    ambientIntensity += moonIntensity * 0.08 * nightFactor;
-
-    // Start with base sky color blend - reuse ambientColor object
-    const dayFactorForColor = 1.0 - nightFactor;
-    Color3.LerpToRef(this.currentZenithColor, this.currentHorizonColor, 0.5 + dayFactorForColor * 0.15, this.ambientColor);
-
-    // Apply bell curve weights - directly modify ambientColor
-    const dayWeight = this.bellCurve(worldTime, noon, 6.0);
-    const sunriseWeight = this.bellCurve(worldTime, sunrise + 0.5, 1.0);
-    const sunsetWeight = this.bellCurve(worldTime, sunset - 0.5, 1.0);
-
-    // Pre-defined colors for different lighting conditions
-    // Use existing Color3 objects to avoid creating new ones
-    // These cases don't happen simultaneously so we can reuse tempColor
-    if (dayWeight > 0) {
-      this.tempColor.set(0.9, 0.9, 0.95); // Day color
-      Color3.LerpToRef(this.ambientColor, this.tempColor, dayWeight * 0.45, this.ambientColor);
+        // Smoothly transition horizon color
+        this.currentHorizonColor = Color3.Lerp(
+            this.currentHorizonColor,
+            this.targetHorizonColor,
+            this.colorTransitionSpeed
+        );
     }
 
-    if (sunriseWeight > 0) {
-      this.tempColor.set(0.75, 0.6, 0.43); // Sunrise color
-      Color3.LerpToRef(this.ambientColor, this.tempColor, sunriseWeight * 0.6, this.ambientColor);
+    /**
+     * Update ambient light using sky colors and celestial data
+     * Using a unified continuous function for smoother transitions
+     */
+    private updateAmbientLightFromSky(celestialData: any): void {
+        const { moonIntensity, worldTime, keyTimes, sunHeight } = celestialData;
+        const { midnight, dawnStart, sunrise, dawnEnd, noon, duskStart, sunset, duskEnd } = keyTimes;
+
+        // PART 1: AMBIENT INTENSITY - Single continuous function approach
+        // ---------------------------------------------------------------
+
+        // Create a normalized day cycle (0-1)
+        const normalizedTime = (worldTime / 24) % 1;
+
+        // Base intensity curve - sinusoidal with peak at noon
+        // This creates a smooth intensity curve that peaks at midday and bottoms at midnight
+        let baseIntensity = 0.5 - 0.5 * Math.cos(normalizedTime * Math.PI * 2);
+
+        // Scale to our desired range (0.04 at night, 0.23 at noon)
+        let ambientIntensity = 0.04 + baseIntensity * 0.19;
+
+        // Add moon influence at night (smooth transition)
+        const nightFactor = this.mathUtils.getNightFactor(worldTime, sunrise, sunset);
+        ambientIntensity += moonIntensity * 0.08 * nightFactor;
+
+        // PART 2: AMBIENT COLOR - Bell curve blending approach
+        // ---------------------------------------------------
+
+        // Start with base sky color blend
+        const dayFactorForColor = 1.0 - nightFactor;
+        let ambientColor = Color3.Lerp(
+            this.currentZenithColor,
+            this.currentHorizonColor,
+            0.5 + dayFactorForColor * 0.15 // 0.5 at night to 0.65 during day
+        );
+
+        // Define our key colors
+        const dayColor = new Color3(0.9, 0.9, 0.95);       // Slightly off-white
+        const sunriseColor = new Color3(0.75, 0.6, 0.43);  // Warm golden
+        const sunsetColor = new Color3(0.7, 0.45, 0.3);    // Warm amber
+        const nightColor = new Color3(0.1, 0.15, 0.35);    // Cool blue
+
+        // Calculate bell curve weights for each period
+        // Bell curves naturally create smooth transitions
+        const dayWeight = this.mathUtils.bellCurve(worldTime, noon, 6.0);
+        const sunriseWeight = this.mathUtils.bellCurve(worldTime, sunrise + 0.5, 1.0);
+        const sunsetWeight = this.mathUtils.bellCurve(worldTime, sunset - 0.5, 1.0);
+
+        // Night weight is slightly different - we use a smooth step from 
+        // after sunset to before sunrise
+        const nightWeight = nightFactor;
+
+        // Blend the colors using our bell curve weights
+        // The influence factors control how strongly each color affects the final result
+        if (dayWeight > 0) {
+            ambientColor = Color3.Lerp(ambientColor, dayColor, dayWeight * 0.45);
+        }
+
+        if (sunriseWeight > 0) {
+            ambientColor = Color3.Lerp(ambientColor, sunriseColor, sunriseWeight * 0.6);
+        }
+
+        if (sunsetWeight > 0) {
+            ambientColor = Color3.Lerp(ambientColor, sunsetColor, sunsetWeight * 0.6);
+        }
+
+        if (nightWeight > 0) {
+            ambientColor = Color3.Lerp(ambientColor, nightColor, nightWeight * 0.5);
+        }
+
+        // Calculate ground color with subtle color shift for realism
+        const groundTint = new Color3(
+            Math.max(0, ambientColor.r * 0.3 - 0.03),
+            Math.max(0, ambientColor.g * 0.3),
+            Math.max(0, ambientColor.b * 0.3 + 0.04)
+        );
+
+        // Apply to the hemispheric light
+        this.skyGlowLight.diffuse = ambientColor;
+        this.skyGlowLight.groundColor = groundTint;
+        this.skyGlowLight.intensity = ambientIntensity;
     }
 
-    if (sunsetWeight > 0) {
-      this.tempColor.set(0.7, 0.45, 0.3); // Sunset color
-      Color3.LerpToRef(this.ambientColor, this.tempColor, sunsetWeight * 0.6, this.ambientColor);
+    // Register objects to cast shadows
+    addShadowCaster(mesh: any): void {
+        if (this.shadowGenerator) {
+            this.shadowGenerator.addShadowCaster(mesh);
+        }
     }
 
-    if (nightFactor > 0) {
-      this.tempColor.set(0.1, 0.15, 0.35); // Night color
-      Color3.LerpToRef(this.ambientColor, this.tempColor, nightFactor * 0.5, this.ambientColor);
+    // Provide sky colors for other services to use
+    getSkyColors(): { zenith: Color3, horizon: Color3 } {
+        return {
+            zenith: this.currentZenithColor.clone(),
+            horizon: this.currentHorizonColor.clone()
+        };
     }
-
-    // Calculate ground color - reuse groundTint object
-    this.groundTint.r = Math.max(0, this.ambientColor.r * 0.3 - 0.03);
-    this.groundTint.g = Math.max(0, this.ambientColor.g * 0.3);
-    this.groundTint.b = Math.max(0, this.ambientColor.b * 0.3 + 0.04);
-
-    // Apply to the hemispheric light - avoid creating new colors
-    this.skyGlowLight.diffuse.copyFrom(this.ambientColor);
-    this.skyGlowLight.groundColor.copyFrom(this.groundTint);
-    this.skyGlowLight.intensity = ambientIntensity;
-  }
-
-  private bellCurve(x: number, center: number, width: number): number {
-    // Handle day wrapping
-    if (center < 6 && x > 18) x -= 24;
-    if (center > 18 && x < 6) x += 24;
-
-    const normalized = (x - center) / width;
-    return Math.max(0, 1 - normalized * normalized);
-  }
-
-  private getNightFactor(time: number, sunrise: number, sunset: number): number {
-    const dayStart = sunrise - 0.5;
-    const dayEnd = sunset + 0.5;
-
-    // Handle day wrapping
-    let wrappedTime = time;
-    if (sunset < sunrise && time < sunrise) wrappedTime += 24;
-
-    // Apply transitions
-    if (wrappedTime >= dayStart && wrappedTime <= sunrise + 1) {
-      return 1 - this.smootherstep(dayStart, sunrise + 1, wrappedTime);
-    } else if (wrappedTime >= sunset - 1 && wrappedTime <= dayEnd) {
-      return this.smootherstep(sunset - 1, dayEnd, wrappedTime);
-    } else if (wrappedTime > dayEnd || wrappedTime < dayStart) {
-      return 1;
-    } else {
-      return 0;
-    }
-  }
-
-  private smootherstep(edge0: number, edge1: number, x: number): number {
-    // Handle edge case with wrapping
-    if (edge0 > edge1 && x < edge0 && x < edge1) x += 24;
-
-    // Clamp to 0..1
-    x = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-
-    // Smootherstep polynomial
-    return x * x * x * (x * (x * 6 - 15) + 10);
-  }
-
-  addShadowCaster(mesh: any): void {
-    if (this.shadowGenerator) {
-      this.shadowGenerator.addShadowCaster(mesh);
-    }
-  }
-
-  getSkyColors(): { zenith: Color3, horizon: Color3 } {
-    // Copy values to return objects instead of creating new ones
-    this.returnZenith.copyFrom(this.currentZenithColor);
-    this.returnHorizon.copyFrom(this.currentHorizonColor);
-    
-    return { 
-      zenith: this.returnZenith, 
-      horizon: this.returnHorizon 
-    };
-  }
-  
-  // Clean up resources
-  dispose(): void {
-    if (this.sunLight) this.sunLight.dispose();
-    if (this.moonLight) this.moonLight.dispose();
-    if (this.skyGlowLight) this.skyGlowLight.dispose();
-    if (this.shadowGenerator) this.shadowGenerator.dispose();
-  }
 }

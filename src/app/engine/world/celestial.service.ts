@@ -4,6 +4,7 @@ import { Vector3, Color3 } from '@babylonjs/core/Maths/math';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { TimeState } from '../physics/time-state.model';
 import { TimeService } from '../physics/time.service';
+import { MathUtils } from '../utils/math-utils.service';
 
 @Injectable({
   providedIn: 'root'
@@ -30,7 +31,10 @@ export class CelestialService {
         duskEnd: 19.0
     };
     
-    constructor(private timeService: TimeService) {
+    constructor(
+        private timeService: TimeService,
+        private mathUtils: MathUtils
+    ) {
         // Initialize with default values
         this.timeState = {
             worldTime: 0,
@@ -84,10 +88,10 @@ export class CelestialService {
         if (worldTime >= this.KEY_TIMES.duskEnd || worldTime <= this.KEY_TIMES.dawnStart) {
             if (worldTime >= this.KEY_TIMES.duskEnd) {
                 // Evening to midnight
-                nightFactor = this.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.duskEnd + 2, worldTime);
+                nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.duskEnd + 2, worldTime);
             } else {
                 // Midnight to dawn start
-                nightFactor = this.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.dawnStart - 2, worldTime);
+                nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.dawnStart - 2, worldTime);
             }
         }
         
@@ -96,10 +100,10 @@ export class CelestialService {
         if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.dawnEnd) {
             if (worldTime < this.KEY_TIMES.sunrise) {
                 // Dawn Start to Sunrise (ramp up)
-                dawnFactor = this.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.sunrise, worldTime);
+                dawnFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.sunrise, worldTime);
             } else {
                 // Sunrise to Dawn End (ramp down)
-                dawnFactor = this.smootherstep(this.KEY_TIMES.dawnEnd, this.KEY_TIMES.sunrise, worldTime);
+                dawnFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnEnd, this.KEY_TIMES.sunrise, worldTime);
             }
         }
         
@@ -111,9 +115,9 @@ export class CelestialService {
             
             // Smoother transition at edges of day
             if (dayProgress < 0.1) {
-                dayFactor = this.smootherstep(0, 0.1, dayProgress);
+                dayFactor = this.mathUtils.smootherstep(0, 0.1, dayProgress);
             } else if (dayProgress > 0.9) {
-                dayFactor = this.smootherstep(1, 0.9, dayProgress);
+                dayFactor = this.mathUtils.smootherstep(1, 0.9, dayProgress);
             } else {
                 dayFactor = 1.0;
             }
@@ -124,10 +128,10 @@ export class CelestialService {
         if (worldTime >= this.KEY_TIMES.duskStart && worldTime <= this.KEY_TIMES.duskEnd) {
             if (worldTime < this.KEY_TIMES.sunset) {
                 // Dusk Start to Sunset (ramp up)
-                duskFactor = this.smootherstep(this.KEY_TIMES.duskStart, this.KEY_TIMES.sunset, worldTime);
+                duskFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskStart, this.KEY_TIMES.sunset, worldTime);
             } else {
                 // Sunset to Dusk End (ramp down)
-                duskFactor = this.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.sunset, worldTime);
+                duskFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.sunset, worldTime);
             }
         }
         
@@ -156,10 +160,10 @@ export class CelestialService {
             // Base intensity when sun is visible
             if (worldTime < this.KEY_TIMES.noon) {
                 // Sunrise to noon: increase to max
-                sunIntensity = this.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, worldTime) * 1.5;
+                sunIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, worldTime) * 1.5;
             } else {
                 // Noon to sunset: decrease to min
-                sunIntensity = this.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.noon, worldTime) * 1.5;
+                sunIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.noon, worldTime) * 1.5;
             }
         }
         
@@ -169,13 +173,13 @@ export class CelestialService {
         let moonOpacity = 0;
         if (worldTime >= this.KEY_TIMES.sunset && worldTime <= this.KEY_TIMES.duskEnd) {
             // Sunset to dusk end: fade in
-            moonOpacity = this.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime);
+            moonOpacity = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime);
         } else if (worldTime >= this.KEY_TIMES.duskEnd || worldTime <= this.KEY_TIMES.dawnStart) {
             // Fully visible during night
             moonOpacity = 1.0;
         } else if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.sunrise) {
             // Dawn start to sunrise: fade out
-            moonOpacity = this.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime);
+            moonOpacity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime);
         }
         
         // Moon brightness
@@ -185,18 +189,18 @@ export class CelestialService {
         
         if (worldTime >= this.KEY_TIMES.sunset && worldTime <= this.KEY_TIMES.duskEnd) {
             // Sunset to dusk end: 0 to min
-            moonIntensity = this.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime) * minMoonIntensity;
+            moonIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime) * minMoonIntensity;
         } else if (worldTime >= this.KEY_TIMES.duskEnd && worldTime <= this.KEY_TIMES.midnight + 24) { // Handle midnight wrapping
             // Dusk end to midnight: min to max
-            moonIntensity = this.lerp(minMoonIntensity, maxMoonIntensity, 
-                this.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.midnight + 24, worldTime));
+            moonIntensity = this.mathUtils.lerp(minMoonIntensity, maxMoonIntensity, 
+                this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.midnight + 24, worldTime));
         } else if (worldTime >= this.KEY_TIMES.midnight && worldTime <= this.KEY_TIMES.dawnStart) {
             // Midnight to dawn start: max to min
-            moonIntensity = this.lerp(maxMoonIntensity, minMoonIntensity, 
-                this.smootherstep(this.KEY_TIMES.midnight, this.KEY_TIMES.dawnStart, worldTime));
+            moonIntensity = this.mathUtils.lerp(maxMoonIntensity, minMoonIntensity, 
+                this.mathUtils.smootherstep(this.KEY_TIMES.midnight, this.KEY_TIMES.dawnStart, worldTime));
         } else if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.sunrise) {
             // Dawn start to sunrise: min to 0
-            moonIntensity = this.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime) * minMoonIntensity;
+            moonIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime) * minMoonIntensity;
         }
         
         // Apply moon opacity to intensity - if moon isn't visible, intensity is 0
@@ -209,10 +213,10 @@ export class CelestialService {
             starVisibility = 1.0;
         } else if (worldTime >= this.KEY_TIMES.sunset && worldTime <= this.KEY_TIMES.duskEnd) {
             // Sunset to dusk end: fade in
-            starVisibility = this.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime);
+            starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime);
         } else if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.sunrise) {
             // Dawn start to sunrise: fade out
-            starVisibility = this.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime);
+            starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime);
         }
         
         // Get current sun and moon colors (reuse color objects)
@@ -317,13 +321,6 @@ export class CelestialService {
     }
     
     /**
-     * Linear interpolation between two values
-     */
-    private lerp(a: number, b: number, t: number): number {
-        return a + t * (b - a);
-    }
-    
-    /**
      * Returns sun color based on time of day
      * Using scientifically accurate colors for different phases
      * Modified to use reference Color3 for better performance
@@ -341,36 +338,19 @@ export class CelestialService {
                         time > sunset ? sunsetB : sunriseB);
         } else if (time < noon) {
             // Sunrise to noon: blend from sunrise to noon
-            const t = this.smootherstep(sunrise, noon, time);
-            colorRef.r = this.lerp(sunriseR, noonR, t);
-            colorRef.g = this.lerp(sunriseG, noonG, t);
-            colorRef.b = this.lerp(sunriseB, noonB, t);
+            const t = this.mathUtils.smootherstep(sunrise, noon, time);
+            colorRef.r = this.mathUtils.lerp(sunriseR, noonR, t);
+            colorRef.g = this.mathUtils.lerp(sunriseG, noonG, t);
+            colorRef.b = this.mathUtils.lerp(sunriseB, noonB, t);
         } else {
             // Noon to sunset: blend from noon to sunset
-            const t = this.smootherstep(noon, sunset, time);
-            colorRef.r = this.lerp(noonR, sunsetR, t);
-            colorRef.g = this.lerp(noonG, sunsetG, t);
-            colorRef.b = this.lerp(noonB, sunsetB, t);
+            const t = this.mathUtils.smootherstep(noon, sunset, time);
+            colorRef.r = this.mathUtils.lerp(noonR, sunsetR, t);
+            colorRef.g = this.mathUtils.lerp(noonG, sunsetG, t);
+            colorRef.b = this.mathUtils.lerp(noonB, sunsetB, t);
         }
         
         return colorRef;
-    }
-    
-    /**
-     * Enhanced smoothstep function for smoother transitions
-     * More gradual than standard smoothstep
-     */
-    private smootherstep(edge0: number, edge1: number, x: number): number {
-        // Handle edge case where edge0 > edge1 (for wrapping around midnight)
-        if (edge0 > edge1 && x < edge0 && x < edge1) {
-            x += 24; // Wrap around for time calculations
-        }
-        
-        // Clamp x to 0..1 range
-        x = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-        
-        // Evaluate 6x^5 - 15x^4 + 10x^3 (better for more gradual transitions)
-        return x * x * x * (x * (x * 6 - 15) + 10);
     }
     
     /**
