@@ -10,9 +10,15 @@ import { MaterialService } from '../material/material.service';
 import { SkyService } from '../world/sky.service';
 import { AtmosphereService } from '../world/atmosphere.service';
 import { CelestialService } from '../world/celestial.service';
+import { ShaderRegistryService } from '../shaders/shader-registry.service';
+import { MathUtils } from '../utils/math-utils.service';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Injectable } from '@angular/core';
 import { EngineService } from '../core/engine.service';
+
+// Import shader code
+import { vertexShader as skyVertexShader } from '../shaders/enhancedSky.vertex';
+import { fragmentShader as skyFragmentShader } from '../shaders/enhancedSky.fragment';
 
 @Injectable()
 export class Scene001 extends BaseScene {
@@ -25,19 +31,46 @@ export class Scene001 extends BaseScene {
         private materialService: MaterialService,
         private skyService: SkyService,
         private lightService: LightService,
-        private atmosphereService: AtmosphereService
+        private atmosphereService: AtmosphereService,
+        private shaderRegistry: ShaderRegistryService,
+        private mathUtils: MathUtils
     ) {
         super(engineService);
     }
     
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
+        console.log('Scene001: Initializing scene');
         this.scene = new Scene(this.engineService.getEngine());
+        
+        // Register shaders needed for this scene
+        this.registerShaders();
+        
+        // Setup scene components
         this.setupCamera(canvas);
         this.setupLighting();
         this.setupTerrain();
         this.setupSky();
 
         return this.scene;
+    }
+
+    /**
+     * Register all shaders needed for this scene
+     */
+    private registerShaders(): void {
+        console.log('Scene001: Registering shaders');
+        
+        // Register sky shader
+        const success = this.shaderRegistry.registerShader(
+            'enhancedSky', 
+            skyVertexShader,
+            skyFragmentShader
+        );
+        
+        console.log('Sky shader registration successful:', success);
+        
+        // Register other shaders as needed for this scene
+        // this.shaderRegistry.registerShader('water', waterVertexShader, waterFragmentShader);
     }
 
     private setupCamera(canvas: HTMLCanvasElement): void {
@@ -83,7 +116,6 @@ export class Scene001 extends BaseScene {
     }
 
     private setupSky(): void {
-        // this.celestialService.debugCelestialPositions();
         this.skyService.createSky(this.scene);
         this.atmosphereService.setup(this.scene);
     }

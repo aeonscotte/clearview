@@ -18,9 +18,7 @@ export class SkyService {
     private timeService: TimeService,
     private celestialService: CelestialService,
     private shaderRegistry: ShaderRegistryService
-  ) {
-    // No need to register shaders here - they're registered at app startup
-  }
+  ) { }
 
   createSky(scene: Scene): void {
     // Verify shader is registered
