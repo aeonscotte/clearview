@@ -1,409 +1,143 @@
 /* src/app/components/ui/pause-menu/pause-menu.component.less */
-// Local font declaration
+// Custom font declaration
 @font-face {
-  font-family: 'IM Fell English SC';
-  src: url('/assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
+    font-family: 'IM Fell English SC';
+    src: url('/assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular.ttf') format('truetype');
 }
 
-// Base Variables
-@parchment-bg: #efe7d4;
-@parchment-shadow: #d1bc8a;
-@parchment-edge: #c4b080;
-@parchment-burnt: #553a20;
-@ink-color: #2c1e0e;
-@stain-color: rgba(139, 69, 19, 0.15);
-@stain-dark: rgba(92, 46, 13, 0.12);
+:root {
+    --fontSize: calc((1vw + 1vh) * .75);
+}
 
 .pause-menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  visibility: hidden;
-  opacity: 0;
-  transition: visibility 0s linear 0.3s, opacity 0.3s;
-
-  &.visible {
-    visibility: visible;
-    opacity: 1;
-    transition: visibility 0s linear 0s, opacity 0.3s;
-  }
-}
-
-.pause-menu-container {
-  width: 450px;
-  max-width: 90vw;
-  height: auto;
-  max-height: 80vh;
-  perspective: 1000px;
-  transform-style: preserve-3d;
-}
-
-.parchment {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, 
-    #f0ead6 0%, 
-    #e8dcba 35%, 
-    #e1d4a6 65%, 
-    @parchment-shadow 100%);
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 50px 40px;
-  color: @ink-color;
-  box-shadow: 
-    0 3px 10px rgba(0, 0, 0, 0.25),
-    0 10px 30px rgba(0, 0, 0, 0.15);
-  transform-origin: top center;
-  animation: unfold 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
-  
-  // Add subtle rotation for realistic effect
-  transform: rotateX(2deg) rotateZ(0.5deg);
-  
-  // Paper grain texture
-  .paper-texture {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: repeating-linear-gradient(
-      0deg,
-      rgba(0, 0, 0, 0.03) 0px,
-      rgba(0, 0, 0, 0.03) 1px,
-      transparent 1px,
-      transparent 2px
-    );
-    opacity: 0.8;
-    pointer-events: none;
-    
-    // Add noise texture
-    &::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-      opacity: 0.4;
-      mix-blend-mode: multiply;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(3px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s linear 0.3s, opacity 0.3s;
+
+    &.visible {
+        visibility: visible;
+        opacity: 1;
+        transition: visibility 0s linear 0s, opacity 0.3s;
     }
-  }
 }
 
-// Torn edge effects
-.torn-edge {
-  position: absolute;
-  pointer-events: none;
-  
-  &.top-edge {
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 8px;
-    background-image: repeating-radial-gradient(
-      circle at 10px -4px,
-      transparent 0,
-      transparent 6px,
-      @parchment-edge 7px,
-      @parchment-edge 9px,
-      transparent 10px
-    );
-    opacity: 0.7;
-  }
-  
-  &.right-edge {
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 8px;
-    background-image: repeating-radial-gradient(
-      circle at calc(100% + 4px) 15px,
-      transparent 0,
-      transparent 6px,
-      @parchment-edge 7px,
-      @parchment-edge 9px,
-      transparent 10px
-    );
-    opacity: 0.7;
-  }
-  
-  &.bottom-edge {
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 8px;
-    background-image: repeating-radial-gradient(
-      circle at 15px calc(100% + 4px),
-      transparent 0,
-      transparent 6px,
-      @parchment-edge 7px,
-      @parchment-edge 9px,
-      transparent 10px
-    );
-    opacity: 0.7;
-  }
-  
-  &.left-edge {
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 8px;
-    background-image: repeating-radial-gradient(
-      circle at -4px 10px,
-      transparent 0,
-      transparent 6px,
-      @parchment-edge 7px,
-      @parchment-edge 9px,
-      transparent 10px
-    );
-    opacity: 0.7;
-  }
+main {
+    position: relative;
+    width: 100%;
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-// Stain effects
-.stain {
-  position: absolute;
-  border-radius: 100%;
-  background: radial-gradient(ellipse at center, 
-    @stain-color 0%, 
-    fade(@stain-color, 60%) 40%, 
-    fade(@stain-color, 10%) 70%, 
-    transparent 100%);
-  mix-blend-mode: multiply;
-  pointer-events: none;
-  
-  &.stain-1 {
-    width: 180px;
-    height: 120px;
-    top: -30px;
-    right: -40px;
-    transform: rotate(20deg);
-    opacity: 0.6;
-  }
-  
-  &.stain-2 {
-    width: 120px;
-    height: 120px;
-    bottom: 20%;
-    left: -30px;
-    opacity: 0.5;
-    background: radial-gradient(ellipse at center, 
-      @stain-dark 0%, 
-      fade(@stain-dark, 60%) 40%, 
-      fade(@stain-dark, 10%) 70%, 
-      transparent 100%);
-  }
-  
-  &.stain-3 {
-    width: 100px;
-    height: 70px;
-    bottom: -20px;
-    right: 30%;
-    opacity: 0.4;
-    transform: rotate(-15deg);
-  }
-  
-  &.stain-4 {
-    width: 50px;
-    height: 50px;
-    top: 40%;
-    left: 10%;
-    opacity: 0.3;
-    background: radial-gradient(ellipse at center, 
-      fade(darken(@stain-color, 10%), 80%) 0%, 
-      fade(darken(@stain-color, 10%), 40%) 40%, 
-      fade(darken(@stain-color, 10%), 10%) 70%, 
-      transparent 100%);
-  }
+#parchment {
+    position: absolute;
+    display: flex;
+    width: 450px;
+    max-width: 75%;
+    height: 350px;
+    /* center page with absolute position */
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+    margin: 2em 0;
+    padding: 4em;
+    box-shadow: 2px 3px 20px black, 0 0 125px #8f5922 inset;
+    background: #fffef0;
+    /* Apply the wavy border effect with SVG filter */
+    filter: url(#wavy2);
+    /* Noise added for a vellum paper effect */
+    background-image: url(data:image/png;base64,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);
 }
 
-// Burnt corner effects
-.burnt-corner {
-  position: absolute;
-  pointer-events: none;
-  width: 60px;
-  height: 60px;
-  mix-blend-mode: multiply;
-  
-  &.top-left {
-    top: 0;
-    left: 0;
-    background: radial-gradient(circle at 0 0, 
-      @parchment-burnt 0%, 
-      fade(@parchment-burnt, 50%) 30%, 
-      fade(@parchment-burnt, 10%) 60%, 
-      transparent 70%);
-    opacity: 0.4;
-  }
-  
-  &.top-right {
-    top: 0;
-    right: 0;
-    background: radial-gradient(circle at 100% 0, 
-      @parchment-burnt 0%, 
-      fade(@parchment-burnt, 50%) 30%, 
-      fade(@parchment-burnt, 10%) 60%, 
-      transparent 70%);
-    opacity: 0.3;
-  }
-  
-  &.bottom-left {
-    bottom: 0;
-    left: 0;
-    background: radial-gradient(circle at 0 100%, 
-      @parchment-burnt 0%, 
-      fade(@parchment-burnt, 50%) 30%, 
-      fade(@parchment-burnt, 10%) 60%, 
-      transparent 70%);
-    opacity: 0.2;
-  }
-  
-  &.bottom-right {
-    bottom: 0;
-    right: 0;
-    background: radial-gradient(circle at 100% 100%, 
-      @parchment-burnt 0%, 
-      fade(@parchment-burnt, 50%) 30%, 
-      fade(@parchment-burnt, 10%) 60%, 
-      transparent 70%);
-    opacity: 0.25;
-  }
-}
-
-.content-container {
-  position: relative;
-  width: 100%;
-  z-index: 10;
-  letter-spacing: 0.01em;
-  line-height: 1.4;
+#contain {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 450px;
+    max-width: 75%;
+    height: 350px;
+    margin: 0 auto;
+    padding: 2em;
+    z-index: 5;
 }
 
 .title {
-  font-family: 'IM Fell English SC', serif;
-  font-weight: normal;
-  font-size: 2.4rem;
-  letter-spacing: 0.03em;
-  margin-top: 0.5rem;
-  margin-bottom: 2rem;
-  text-align: center;
-  color: @ink-color;
-  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
-  position: relative;
-  
-  // Decorative line below title
-  &::after {
-    content: '';
-    display: block;
-    width: 120px;
-    height: 2px;
-    background: linear-gradient(to right, 
-      transparent 0%,
-      rgba(66, 50, 26, 0.3) 20%,
-      rgba(66, 50, 26, 0.6) 50%,
-      rgba(66, 50, 26, 0.3) 80%,
-      transparent 100%);
-    margin: 0.8rem auto 0;
-  }
-  
-  // Ink bleed effect
-  text-shadow: 0 0 1px rgba(44, 30, 14, 0.2);
+    font-family: 'IM Fell English SC', serif;
+    font-weight: normal;
+    font-size: 2.4rem;
+    letter-spacing: 0.03em;
+    color: #7F3300;
+    text-align: center;
+    margin-bottom: 2rem;
 }
 
 .menu-content {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 1.5rem;
-  z-index: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 1.5rem;
 }
 
 .btn-parchment {
-  position: relative;
-  background: linear-gradient(to bottom, 
-    lighten(@parchment-bg, 3%) 0%, 
-    @parchment-bg 50%,
-    darken(@parchment-shadow, 5%) 100%);
-  border: 1px solid @parchment-edge;
-  outline: none;
-  color: @ink-color;
-  font-family: 'IM Fell English SC', serif;
-  font-size: 1.2rem;
-  font-weight: normal;
-  letter-spacing: 0.04em;
-  padding: 12px 38px;
-  margin: 10px 0;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  border-radius: 3px;
-  min-width: 180px;
-  text-align: center;
-  box-shadow: 
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 5px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  
-  // Button texture
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    opacity: 0.2;
-    mix-blend-mode: multiply;
-    pointer-events: none;
-  }
-  
-  // Ink bleed effect
-  text-shadow: 0 0 1px rgba(44, 30, 14, 0.1);
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 
-      0 4px 8px rgba(0, 0, 0, 0.12),
-      0 6px 12px rgba(0, 0, 0, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    filter: brightness(1.05);
-  }
-  
-  &:active {
-    transform: translateY(1px);
-    box-shadow: 
-      0 1px 2px rgba(0, 0, 0, 0.1),
-      inset 0 1px 2px rgba(0, 0, 0, 0.15);
-    filter: brightness(0.98);
-  }
+    position: relative;
+    background: linear-gradient(to bottom,
+            #f8f3e2 0%,
+            #f2e8c9 50%,
+            #e2cb8c 100%);
+    border: 1px solid #d4b876;
+    color: #7F3300;
+    font-family: 'IM Fell English SC', serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.04em;
+    padding: 12px 38px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border-radius: 3px;
+    min-width: 180px;
+    text-align: center;
+    box-shadow:
+        0 1px 3px rgba(80, 60, 30, 0.12),
+        0 2px 5px rgba(80, 60, 30, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow:
+            0 4px 8px rgba(80, 60, 30, 0.12),
+            0 6px 12px rgba(80, 60, 30, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        filter: brightness(1.05);
+    }
+
+    &:active {
+        transform: translateY(1px);
+        box-shadow:
+            0 1px 2px rgba(80, 60, 30, 0.1),
+            inset 0 1px 2px rgba(80, 60, 30, 0.15);
+        filter: brightness(0.98);
+    }
 }
 
-// Animation for parchment unfold
-@keyframes unfold {
-  from {
-    transform: rotateX(-90deg) translateY(-20px);
-    opacity: 0.3;
-    filter: brightness(0.8);
-  }
-  40% {
-    opacity: 0.7;
-  }
-  to {
-    transform: rotateX(2deg) rotateZ(0.5deg);
-    opacity: 1;
-    filter: brightness(1);
-  }
+// Hide SVG
+svg {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
 }
