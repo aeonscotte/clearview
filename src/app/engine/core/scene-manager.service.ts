@@ -6,33 +6,44 @@ import { EngineService } from './engine.service';
 
 @Injectable({ providedIn: 'root' })
 export class SceneManagerService {
-  private currentSceneInstance?: BaseScene;
+    private currentSceneInstance?: BaseScene;
 
-  constructor(
-    private engineService: EngineService,
-    private injector: Injector
-  ) { }
+    constructor(
+        private engineService: EngineService,
+        private injector: Injector
+    ) { }
 
-  async loadScene(sceneType: Type<BaseScene>, canvas: HTMLCanvasElement): Promise<void> {
-    if (this.currentSceneInstance) {
-      this.currentSceneInstance.dispose();
+    async loadScene(sceneType: Type<BaseScene>, canvas: HTMLCanvasElement): Promise<void> {
+        if (this.currentSceneInstance) {
+            this.currentSceneInstance.dispose();
+        }
+
+        // Get scene instance from Angular DI system
+        this.currentSceneInstance = this.injector.get(sceneType);
+
+        await this.currentSceneInstance!.init(canvas);
+
+        // Initialize the render loop
+        this.setupRenderLoop();
     }
 
-    // Get scene instance from Angular DI system
-    this.currentSceneInstance = this.injector.get(sceneType);
-    
-    await this.currentSceneInstance!.init(canvas);
+    // Add this method to setup the render loop
+    private setupRenderLoop(): void {
+        const engine = this.engineService.getEngine();
+        engine.runRenderLoop(() => {
+            const delta = engine.getDeltaTime();
+            this.currentSceneInstance?.update(delta);
+            this.currentSceneInstance?.getScene().render();
+        });
+    }
 
-    const engine = this.engineService.getEngine();
-    engine.runRenderLoop(() => {
-      const delta = engine.getDeltaTime();
-      this.currentSceneInstance?.update(delta);
-      this.currentSceneInstance?.getScene().render();
-    });
-  }
+    // Add this method to restore the render loop after pausing
+    restoreRenderLoop(): void {
+        this.setupRenderLoop();
+    }
 
-  // Add method to get the current scene
-  getCurrentScene(): Scene | undefined {
-    return this.currentSceneInstance?.getScene();
-  }
+    // Get the current scene
+    getCurrentScene(): Scene | undefined {
+        return this.currentSceneInstance?.getScene();
+    }
 }
