@@ -291,10 +291,10 @@ Clearview implements a memory-efficient approach to minimize garbage collection:
 
 ## Roadmap
 
-1. **Enhanced Input System**: Unified input handling for keyboard, mouse, and touch
-2. **Particle System**: Memory-efficient particle system for environmental effects
+1. **GUI Service**: User interface framework optimized for 3D environments
+2. **Basic Input System**: Unified input handling for keyboard and mouse.
 3. **Audio System**: Spatial audio with dynamic mixing
-4. **GUI Service**: User interface framework optimized for 3D environments
+4. **Particle System**: Memory-efficient particle system for environmental effects
 5. **Quality Settings System**: Adaptive quality based on device performance
 6. **Asset Management System**: Improved asset loading with caching and streaming
 7. **Post-Processing Pipeline**: Efficient multi-pass rendering
