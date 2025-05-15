@@ -12,6 +12,12 @@ export class CelestialService {
     private timeState: TimeState;
     private timeStateSubject = new BehaviorSubject<TimeState>(null!);
     
+    // Pre-allocated objects for calculations to reduce GC pressure
+    private _sunDir = new Vector3(0, 0, 0);
+    private _moonDir = new Vector3(0, 0, 0);
+    private _sunColor = new Color3(0, 0, 0);
+    private _moonColor = new Color3(0, 0, 0);
+    
     // Define key time points once as constants
     private readonly KEY_TIMES = {
         midnight: 0.0,
@@ -59,14 +65,17 @@ export class CelestialService {
         // Calculate sun angle
         const sunAngle = (normalizedTime * 2.0 * Math.PI) - (0.5 * Math.PI);
         
-        // Calculate sun position
+        // Calculate sun position using pre-allocated vector
         const sunX = Math.cos(sunAngle);
         const sunY = Math.sin(sunAngle); // -1 at midnight, 0 at sunrise/sunset, +1 at noon
         const sunZ = 0.1; // Slight tilt for better shadows
         
-        // Calculate sun and moon directions
-        const sunDir = new Vector3(sunX, sunY, sunZ).normalize();
-        const moonDir = new Vector3(-sunX, -sunY, sunZ).normalize();
+        // Reuse pre-allocated vectors instead of creating new ones
+        this._sunDir.set(sunX, sunY, sunZ);
+        this._sunDir.normalize();
+        
+        this._moonDir.set(-sunX, -sunY, sunZ);
+        this._moonDir.normalize();
         
         // Calculate period factors (0-1) for each time of day
         
@@ -206,9 +215,9 @@ export class CelestialService {
             starVisibility = this.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime);
         }
         
-        // Get current sun and moon colors
-        const sunColor = this.getSunColor(worldTime, this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, this.KEY_TIMES.sunset);
-        const moonColor = new Color3(0.8 * moonOpacity, 0.8 * moonOpacity, 1.0 * moonOpacity);
+        // Get current sun and moon colors (reuse color objects)
+        this.getSunColor(worldTime, this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, this.KEY_TIMES.sunset, this._sunColor);
+        this._moonColor.set(0.8 * moonOpacity, 0.8 * moonOpacity, 1.0 * moonOpacity);
         
         // Update the time state object with all calculated values
         this.timeState = {
@@ -252,30 +261,12 @@ export class CelestialService {
      * This method is kept for backward compatibility
      */
     getCelestialPositions() {
-        const worldTime = this.timeState.worldTime;
-        const normalizedTime = this.timeState.normalizedTime;
-        
-        // Calculate sun angle
-        const sunAngle = (normalizedTime * 2.0 * Math.PI) - (0.5 * Math.PI);
-        
-        // Calculate sun position
-        const sunX = Math.cos(sunAngle);
-        const sunY = Math.sin(sunAngle);
-        const sunZ = 0.1;
-        
-        // Create direction vectors (normalized)
-        const sunDir = new Vector3(sunX, sunY, sunZ).normalize();
-        const moonDir = new Vector3(-sunX, -sunY, sunZ).normalize();
-        
-        // Get sun color
-        const sunColor = this.getSunColor(worldTime, this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, this.KEY_TIMES.sunset);
-        const moonColor = new Color3(0.8 * this.timeState.moonOpacity, 0.8 * this.timeState.moonOpacity, 1.0 * this.timeState.moonOpacity);
-        
+        // Return references to pre-allocated objects
         return {
             worldTime: this.timeState.worldTime,
             normalizedTime: this.timeState.normalizedTime,
-            sunDir,
-            moonDir,
+            sunDir: this._sunDir,
+            moonDir: this._moonDir,
             sunHeight: this.timeState.sunHeight,
             moonHeight: this.timeState.moonHeight,
             isDay: this.timeState.dayFactor > 0.5,
@@ -291,8 +282,8 @@ export class CelestialService {
             starVisibility: this.timeState.starVisibility,
             sunIntensity: this.timeState.sunIntensity,
             moonIntensity: this.timeState.moonIntensity,
-            sunColor,
-            moonColor,
+            sunColor: this._sunColor,
+            moonColor: this._moonColor,
             keyTimes: this.KEY_TIMES
         };
     }
@@ -335,25 +326,34 @@ export class CelestialService {
     /**
      * Returns sun color based on time of day
      * Using scientifically accurate colors for different phases
+     * Modified to use reference Color3 for better performance
      */
-    private getSunColor(time: number, sunrise: number, noon: number, sunset: number): Color3 {
+    private getSunColor(time: number, sunrise: number, noon: number, sunset: number, colorRef: Color3): Color3 {
         // Scientific sun colors based on solar elevation
-        const sunriseColor = new Color3(1.0, 0.6, 0.3);      // Orange-gold at sunrise
-        const noonColor = new Color3(1.0, 0.95, 0.8);        // Bright white-yellow at noon
-        const sunsetColor = new Color3(1.0, 0.4, 0.2);       // Deep orange-red at sunset
+        const sunriseR = 1.0, sunriseG = 0.6, sunriseB = 0.3;  // Orange-gold at sunrise
+        const noonR = 1.0, noonG = 0.95, noonB = 0.8;          // Bright white-yellow at noon
+        const sunsetR = 1.0, sunsetG = 0.4, sunsetB = 0.2;     // Deep orange-red at sunset
         
         if (time < sunrise || time > sunset) {
             // Below horizon - use sunset/sunrise color based on which is closer
-            return (time > sunset) ? sunsetColor : sunriseColor;
+            colorRef.set(time > sunset ? sunsetR : sunriseR, 
+                        time > sunset ? sunsetG : sunriseG, 
+                        time > sunset ? sunsetB : sunriseB);
         } else if (time < noon) {
             // Sunrise to noon: blend from sunrise to noon
             const t = this.smootherstep(sunrise, noon, time);
-            return Color3.Lerp(sunriseColor, noonColor, t);
+            colorRef.r = this.lerp(sunriseR, noonR, t);
+            colorRef.g = this.lerp(sunriseG, noonG, t);
+            colorRef.b = this.lerp(sunriseB, noonB, t);
         } else {
             // Noon to sunset: blend from noon to sunset
             const t = this.smootherstep(noon, sunset, time);
-            return Color3.Lerp(noonColor, sunsetColor, t);
+            colorRef.r = this.lerp(noonR, sunsetR, t);
+            colorRef.g = this.lerp(noonG, sunsetG, t);
+            colorRef.b = this.lerp(noonB, sunsetB, t);
         }
+        
+        return colorRef;
     }
     
     /**
@@ -396,7 +396,6 @@ export class CelestialService {
             
             // Get the state for this time point
             const state = this.getTimeState();
-            const pos = this.getCelestialPositions();
             
             console.log(`${labels[i]} (${time}h):`, {
                 sunHeight: state.sunHeight.toFixed(2), 

@@ -16,19 +16,20 @@ import { EngineService } from '../core/engine.service';
 
 @Injectable()
 export class Scene001 extends BaseScene {
-  constructor(
-    private engineService: EngineService,
-    private timeService: TimeService,
-    private celestialService: CelestialService,
-    private cameraService: CameraService,
-    private terrainService: TerrainService,
-    private materialService: MaterialService,
-    private skyService: SkyService,
-    private lightService: LightService,
-    private atmosphereService: AtmosphereService
-  ) {
-    super(engineService);
-  }
+    constructor(
+        private engineService: EngineService,
+        private timeService: TimeService,
+        private celestialService: CelestialService,
+        private cameraService: CameraService,
+        private terrainService: TerrainService,
+        private materialService: MaterialService,
+        private skyService: SkyService,
+        private lightService: LightService,
+        private atmosphereService: AtmosphereService
+    ) {
+        super(engineService);
+    }
+    
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         this.scene = new Scene(this.engineService.getEngine());
         this.setupCamera(canvas);
@@ -88,20 +89,20 @@ export class Scene001 extends BaseScene {
     }
 
     update(deltaTime: number): void {
-    // Update time first
-    this.timeService.update();
-    
-    // Then update celestial state once - this calculates all time factors
-    this.celestialService.updateTimeState();
-    
-    // Then update services that depend on the celestial state
-    // 1. Light service (calculates sky colors)
-    // 2. Sky service (uses light information)
-    // 3. Atmosphere service (uses light information for fog)
-    this.lightService.update();
-    this.skyService.update();
-    this.atmosphereService.update(this.scene);
-}
+        // Pass deltaTime to TimeService for frame-rate independent updates
+        this.timeService.update(deltaTime);
+        
+        // Then update celestial state once - this calculates all time factors
+        this.celestialService.updateTimeState();
+        
+        // Then update services that depend on the celestial state
+        // 1. Light service (calculates sky colors)
+        // 2. Sky service (uses light information)
+        // 3. Atmosphere service (uses light information for fog)
+        this.lightService.update();
+        this.skyService.update();
+        this.atmosphereService.update(this.scene);
+    }
 
     dispose(): void {
         this.scene.dispose();

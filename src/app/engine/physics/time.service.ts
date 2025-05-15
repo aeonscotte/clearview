@@ -8,33 +8,38 @@ export class TimeService {
     private startTime = performance.now();
     private lastFrameTime = performance.now();
     private elapsed = 0;
+    private deltaSec = 0;
     public readonly dayDurationInSeconds = 1440; // [seconds] day-night cycle length
     private continuousRotation = 0; // Track continuous rotation angle
     private starRotationFactor: number; // Factor to scale star rotation properly
 
-    // Allow setting initial time (e.g., start at midnight)
     constructor() {
         // Set initial time if needed
         this.elapsed = (0 / 24) * this.dayDurationInSeconds;
 
-        // Calculate scientifically accurate star rotation factor
-        // Stars complete one full rotation every sidereal day (23h 56m 4s)
-        // which is slightly faster than the solar day (24h)
-        // The ratio is approximately 0.9973 rotations per solar day
-        const siderealToSolarRatio = 0.9973;
-
-        // Stars should complete siderealToSolarRatio rotations during one day cycle
-        this.starRotationFactor = (2 * Math.PI * siderealToSolarRatio) / this.dayDurationInSeconds;
+        // Simple one rotation per day
+        this.starRotationFactor = (2 * Math.PI) / this.dayDurationInSeconds;
     }
 
-    update(): void {
+    update(deltaTime?: number): void {
         const now = performance.now();
-        this.elapsed = (now - this.startTime) / 1000; // seconds
-
-        // Calculate continuous rotation using scientifically accurate star rotation speed
+        
+        // Frame-rate independent time calculation
+        if (deltaTime !== undefined) {
+            // Use provided deltaTime (in milliseconds) if available
+            this.deltaSec = deltaTime * 0.001; // Convert to seconds
+        } else {
+            // Calculate delta if not provided (fallback)
+            this.deltaSec = (now - this.lastFrameTime) * 0.001;
+        }
+        
+        // Add delta to elapsed time (frame-rate independent)
+        this.elapsed += this.deltaSec;
+        
+        // Update continuous rotation using scientifically accurate star rotation speed
         // This simulates Earth's rotation relative to the stars (sidereal rotation)
-        this.continuousRotation = this.elapsed * this.starRotationFactor;
-
+        this.continuousRotation += this.deltaSec * this.starRotationFactor;
+        
         this.lastFrameTime = now;
     }
 
@@ -45,14 +50,14 @@ export class TimeService {
     }
 
     getDelta(): number {
-        return (performance.now() - this.lastFrameTime) / 1000;
+        return this.deltaSec;
     }
 
     getElapsed(): number {
         return this.elapsed;
     }
 
-    // New method to get continuous rotation value for stars
+    // Get continuous rotation value for stars
     getContinuousRotation(): number {
         return this.continuousRotation;
     }
