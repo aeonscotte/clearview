@@ -87,38 +87,39 @@ Clearview implements a memory-efficient approach to minimize garbage collection:
 ## Project Structure
 
 ```
-src/
-├── app/
-│   ├── app.component.*                # Root component
-│   ├── app.config.ts                  # Application configuration
-│   ├── app.routes.ts                  # Routing configuration
-│   ├── engine/                        # 3D engine core
-│   │   ├── base/
-│   │   │   └── scene.ts               # Abstract base scene 
-│   │   ├── core/                      # Core engine services
-│   │   │   ├── engine.service.ts      # BabylonJS wrapper
-│   │   │   └── scene-manager.service.ts # Scene management
-│   │   ├── material/
-│   │   │   └── material.service.ts    # Material creation
-│   │   ├── physics/
-│   │   │   ├── time.service.ts        # Time simulation
-│   │   │   └── time-state.model.ts    # Time state model
-│   │   ├── player/
-│   │   │   └── camera.service.ts      # Camera controls
-│   │   ├── scenes/
-│   │   │   └── scene001.scene.ts      # Example scene
-│   │   ├── shaders/
-│   │   │   ├── enhancedSky.fragment.ts # Sky shader
-│   │   │   ├── enhancedSky.vertex.ts   # Sky shader
-│   │   │   └── shader-registry.service.ts # Shader management
-│   │   └── world/
-│   │       ├── atmosphere.service.ts  # Atmospheric effects
-│   │       ├── celestial.service.ts   # Sun/moon positioning
-│   │       ├── light.service.ts       # Lighting system
-│   │       ├── sky.service.ts         # Sky rendering
-│   │       └── terrain.service.ts     # Terrain generation
-│   ├── pages/                         # Application pages
-│   └── components/                    # Application components
+├── public/
+└── src/
+    ├── app/
+    │   ├── app.component.*                # Root component
+    │   ├── app.config.ts                  # Application configuration
+    │   ├── app.routes.ts                  # Routing configuration
+    │   ├── engine/                        # 3D engine core
+    │   │   ├── base/
+    │   │   │   └── scene.ts               # Abstract base scene 
+    │   │   ├── core/                      # Core engine services
+    │   │   │   ├── engine.service.ts      # BabylonJS wrapper
+    │   │   │   └── scene-manager.service.ts # Scene management
+    │   │   ├── material/
+    │   │   │   └── material.service.ts    # Material creation
+    │   │   ├── physics/
+    │   │   │   ├── time.service.ts        # Time simulation
+    │   │   │   └── time-state.model.ts    # Time state model
+    │   │   ├── player/
+    │   │   │   └── camera.service.ts      # Camera controls
+    │   │   ├── scenes/
+    │   │   │   └── scene001.scene.ts      # Example scene
+    │   │   ├── shaders/
+    │   │   │   ├── enhancedSky.fragment.ts # Sky shader
+    │   │   │   ├── enhancedSky.vertex.ts   # Sky shader
+    │   │   │   └── shader-registry.service.ts # Shader management
+    │   │   └── world/
+    │   │       ├── atmosphere.service.ts  # Atmospheric effects
+    │   │       ├── celestial.service.ts   # Sun/moon positioning
+    │   │       ├── light.service.ts       # Lighting system
+    │   │       ├── sky.service.ts         # Sky rendering
+    │   │       └── terrain.service.ts     # Terrain generation
+    │   ├── pages/                         # Application pages
+    │   └── components/                    # Application components
 ```
 
 ## Service Responsibilities
