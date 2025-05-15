@@ -1,6 +1,6 @@
 // src/app/engine/core/scene-manager.service.ts
 import { Injectable, Injector, Type } from '@angular/core';
-import { Engine } from '@babylonjs/core/Engines/engine';
+import { Scene } from '@babylonjs/core/scene';
 import { BaseScene } from '../base/scene';
 import { EngineService } from './engine.service';
 
@@ -29,5 +29,10 @@ export class SceneManagerService {
       this.currentSceneInstance?.update(delta);
       this.currentSceneInstance?.getScene().render();
     });
+  }
+
+  // Add method to get the current scene
+  getCurrentScene(): Scene | undefined {
+    return this.currentSceneInstance?.getScene();
   }
 }

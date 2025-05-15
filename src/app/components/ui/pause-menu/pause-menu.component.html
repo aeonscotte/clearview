@@ -1,0 +1,35 @@
+<!-- src/app/components/ui/pause-menu/pause-menu.component.html -->
+<div class="pause-menu-overlay" [class.visible]="isVisible">
+  <div class="pause-menu-container">
+    <div class="parchment">
+      <!-- Paper texture & aging effects -->
+      <div class="paper-texture"></div>
+      
+      <!-- Weathered borders -->
+      <div class="torn-edge top-edge"></div>
+      <div class="torn-edge right-edge"></div>
+      <div class="torn-edge bottom-edge"></div>
+      <div class="torn-edge left-edge"></div>
+      
+      <!-- Stain effects -->
+      <div class="stain stain-1"></div>
+      <div class="stain stain-2"></div>
+      <div class="stain stain-3"></div>
+      <div class="stain stain-4"></div>
+      
+      <!-- Burnt corners -->
+      <div class="burnt-corner top-left"></div>
+      <div class="burnt-corner top-right"></div>
+      <div class="burnt-corner bottom-left"></div>
+      <div class="burnt-corner bottom-right"></div>
+      
+      <!-- Content -->
+      <div class="content-container">
+        <h2 class="title">Game Paused</h2>
+        <div class="menu-content">
+          <button class="btn-parchment" (click)="resumeGame()">Resume</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
