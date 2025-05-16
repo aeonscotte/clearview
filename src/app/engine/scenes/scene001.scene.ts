@@ -2,13 +2,13 @@
 import { Injectable } from '@angular/core';
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { BaseScene } from '../base/scene';
 import { EngineService } from '../core/engine.service';
 import { TimeService } from '../physics/time.service';
 import { CameraService } from '../player/camera.service';
 import { LightService } from '../world/light.service';
 import { TerrainService } from '../world/terrain.service';
+import { TerrainGeneratorService } from '../world/terrain-generator.service';
 import { MaterialService } from '../material/material.service';
 import { SkyService } from '../world/sky.service';
 import { AtmosphereService } from '../world/atmosphere.service';
@@ -16,6 +16,7 @@ import { CelestialService } from '../world/celestial.service';
 import { ShaderRegistryService } from '../shaders/shader-registry.service';
 import { AssetManagerService } from '../core/asset-manager.service';
 import { MathUtils } from '../utils/math-utils.service';
+import { TerrainGenerationOptions, BiomeType, ErosionType } from '../world/terrain-generator.models';
 
 // Import shader code
 import { vertexShader as skyVertexShader } from '../shaders/enhancedSky.vertex';
@@ -32,6 +33,7 @@ export class Scene001 extends BaseScene {
         private celestialService: CelestialService,
         private cameraService: CameraService,
         private terrainService: TerrainService,
+        private terrainGenerator: TerrainGeneratorService,
         private materialService: MaterialService,
         private skyService: SkyService,
         private lightService: LightService,
@@ -75,8 +77,9 @@ export class Scene001 extends BaseScene {
     private setupCamera(canvas: HTMLCanvasElement): void {
         this.cameraService.createArcRotateCamera(this.scene, canvas, {
             name: 'Camera001',
-            target: new Vector3(0, 1, 0),
-            radius: 8,
+            target: new Vector3(0, 5, 0), // Adjusted to point at terrain center
+            radius: 60, // Increased radius to see more of the terrain
+            beta: Math.PI / 3.5, // Adjusted for better viewing angle
         });
 
         if (this.scene.activeCamera) {
@@ -104,28 +107,66 @@ export class Scene001 extends BaseScene {
     }
 
     private async setupTerrain(): Promise<void> {
-        // Create ground mesh
-        const ground = this.terrainService.createGround(this.scene, {
-            width: 60,
-            height: 60,
-            subdivisions: 4,
-        });
-
         // Create material using our asset manager
-        const material = this.materialService.createGroundMaterial(
+        const terrainMaterial = this.materialService.createGroundMaterial(
             this.terrainPath,
             3,
             this.scene
         );
 
-        ground.material = material;
-        ground.receiveShadows = true;
+        // Define terrain generation options
+        const terrainOptions: TerrainGenerationOptions = {
+            width: 100,
+            depth: 100,
+            resolution: 128,
+            minHeight: 0,
+            maxHeight: 15,
+            noiseOptions: {
+                scale: 50,
+                octaves: 5,
+                persistence: 0.5,
+                lacunarity: 2.0,
+                seed: 42
+            },
+            smooth: true,
+            smoothIterations: 2,
+            name: 'proceduralTerrain'
+        };
 
-        // Create debug sphere
-        const debugSphere = MeshBuilder.CreateSphere('debugSphere', { diameter: 1 }, this.scene);
-        debugSphere.position = new Vector3(0, 1, 0);
-        debugSphere.material = material;
-        this.lightService.addShadowCaster(debugSphere);
+        // Generate terrain
+        const terrain = this.terrainGenerator.generateTerrain(this.scene, terrainOptions);
+
+        // Apply material
+        terrain.material = terrainMaterial;
+        terrain.receiveShadows = true;
+
+        // Add mountain feature
+        this.terrainGenerator.generateMountains(terrain, {
+            position: { x: 15, z: -15 },
+            radius: 25,
+            height: 20,
+            roughness: 0.7,
+            steepness: 0.6
+        });
+
+        // Add river
+        this.terrainGenerator.generateRiver(terrain, {
+            start: { x: -40, z: -40 },
+            end: { x: 30, z: 30 },
+            width: 3,
+            depth: 2,
+            meandering: 0.5
+        });
+
+        // Apply some erosion
+        this.terrainGenerator.applyErosion(terrain, {
+            iterations: 1000,
+            strength: 0.2,
+            type: ErosionType.Thermal
+        });
+
+        // Register the terrain for shadow casting
+        this.lightService.addShadowCaster(terrain);
     }
 
     private setupSky(): void {
