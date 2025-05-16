@@ -21,12 +21,60 @@ export class LightService {
     private targetZenithColor: Color3 = new Color3(0, 0, 0);
     private targetHorizonColor: Color3 = new Color3(0, 0, 0);
     private colorTransitionSpeed: number = 0.05;
+    
+    // Pre-allocated color objects for calculateSkyColors
+    private _nightZenith: Color3 = new Color3(0.015, 0.015, 0.04);
+    private _nightHorizon: Color3 = new Color3(0.04, 0.04, 0.08);
+    private _sunriseZenith: Color3 = new Color3(0.12, 0.15, 0.32);
+    private _sunriseHorizon: Color3 = new Color3(0.92, 0.58, 0.32);
+    private _dayZenith: Color3 = new Color3(0.18, 0.26, 0.48);  
+    private _dayHorizon: Color3 = new Color3(0.7, 0.8, 0.95);   
+    private _sunsetZenith: Color3 = new Color3(0.15, 0.12, 0.25);
+    private _sunsetHorizon: Color3 = new Color3(0.9, 0.35, 0.15);
+    
+    // Pre-allocated key points array for sky color interpolation
+    private _keyPoints: { time: number, zenith: Color3 | null, horizon: Color3 | null }[] = [
+        { time: 0, zenith: null, horizon: null }, // Will be filled with references
+        { time: 0, zenith: null, horizon: null },
+        { time: 0, zenith: null, horizon: null },
+        { time: 0, zenith: null, horizon: null },
+        { time: 0, zenith: null, horizon: null },
+        { time: 0, zenith: null, horizon: null },
+        { time: 0, zenith: null, horizon: null },
+        { time: 0, zenith: null, horizon: null }
+    ];
+    
+    // Pre-allocated ambient light color objects
+    private _dayColor: Color3 = new Color3(0.9, 0.9, 0.95);
+    private _sunriseColor: Color3 = new Color3(0.75, 0.6, 0.43);
+    private _sunsetColor: Color3 = new Color3(0.7, 0.45, 0.3);
+    private _nightColor: Color3 = new Color3(0.1, 0.15, 0.35);
+    private _groundTint: Color3 = new Color3(0, 0, 0);
+    private _tempAmbientColor: Color3 = new Color3(0, 0, 0);
 
     constructor(
         private timeService: TimeService,
         private celestialService: CelestialService,
         private mathUtils: MathUtils
-    ) { }
+    ) {
+        // Initialize key points array with references to pre-allocated colors
+        this._keyPoints[0].zenith = this._nightZenith;
+        this._keyPoints[0].horizon = this._nightHorizon;
+        this._keyPoints[1].zenith = this._nightZenith;
+        this._keyPoints[1].horizon = this._nightHorizon;
+        this._keyPoints[2].zenith = this._sunriseZenith;
+        this._keyPoints[2].horizon = this._sunriseHorizon;
+        this._keyPoints[3].zenith = this._dayZenith;
+        this._keyPoints[3].horizon = this._dayHorizon;
+        this._keyPoints[4].zenith = this._dayZenith;
+        this._keyPoints[4].horizon = this._dayHorizon;
+        this._keyPoints[5].zenith = this._sunsetZenith;
+        this._keyPoints[5].horizon = this._sunsetHorizon;
+        this._keyPoints[6].zenith = this._nightZenith;
+        this._keyPoints[6].horizon = this._nightHorizon;
+        this._keyPoints[7].zenith = this._nightZenith;
+        this._keyPoints[7].horizon = this._nightHorizon;
+    }
 
     createLights(scene: Scene): void {
         // Sun light - warm daylight
@@ -75,7 +123,7 @@ export class LightService {
         // Update sun light - only active when sun is visible
         if (sunVisibility > 0 && sunHeight > -0.05) {
             this.sunLight.intensity = sunIntensity;
-            this.sunLight.diffuse = sunColor;
+            this.sunLight.diffuse.copyFrom(sunColor);
             this.sunLight.setEnabled(true);
         } else {
             this.sunLight.setEnabled(false);
@@ -85,7 +133,7 @@ export class LightService {
         // Update moon light - only active when moon is visible
         if (moonOpacity > 0 && moonHeight > -0.05) {
             this.moonLight.intensity = moonIntensity;
-            this.moonLight.diffuse = moonColor;
+            this.moonLight.diffuse.copyFrom(moonColor);
             this.moonLight.setEnabled(true);
         } else {
             this.moonLight.setEnabled(false);
@@ -102,33 +150,21 @@ export class LightService {
     private calculateSkyColors(worldTime: number, keyTimes: any): void {
         const { midnight, dawnStart, sunrise, dawnEnd, noon, duskStart, sunset, duskEnd } = keyTimes;
 
-        // Scientifically accurate sky colors for each time period
-        const nightZenith = new Color3(0.015, 0.015, 0.04);    // Almost black with hint of blue
-        const nightHorizon = new Color3(0.04, 0.04, 0.08);     // Deep blue
-        const sunriseZenith = new Color3(0.12, 0.15, 0.32);    // Deepening blue with purple hints
-        const sunriseHorizon = new Color3(0.92, 0.58, 0.32);   // Golden orange
-        const dayZenith = new Color3(0.18, 0.26, 0.48);        // Rich blue
-        const dayHorizon = new Color3(0.7, 0.8, 0.95);         // Pale blue-white
-        const sunsetZenith = new Color3(0.15, 0.12, 0.25);     // Purple-blue
-        const sunsetHorizon = new Color3(0.9, 0.35, 0.15);     // Deep orange-red
-
-        // Define key points for interpolation
-        const keyPoints = [
-            { time: midnight, zenith: nightZenith, horizon: nightHorizon },
-            { time: dawnStart, zenith: nightZenith, horizon: nightHorizon },
-            { time: sunrise, zenith: sunriseZenith, horizon: sunriseHorizon },
-            { time: dawnEnd, zenith: dayZenith, horizon: dayHorizon },
-            { time: duskStart, zenith: dayZenith, horizon: dayHorizon },
-            { time: sunset, zenith: sunsetZenith, horizon: sunsetHorizon },
-            { time: duskEnd, zenith: nightZenith, horizon: nightHorizon },
-            { time: midnight + 24, zenith: nightZenith, horizon: nightHorizon } // Full circle
-        ];
+        // Update key points array times (zenith and horizon colors are pre-allocated)
+        this._keyPoints[0].time = midnight;
+        this._keyPoints[1].time = dawnStart;
+        this._keyPoints[2].time = sunrise;
+        this._keyPoints[3].time = dawnEnd;
+        this._keyPoints[4].time = duskStart;
+        this._keyPoints[5].time = sunset;
+        this._keyPoints[6].time = duskEnd;
+        this._keyPoints[7].time = midnight + 24; // Full circle
 
         // Find which key points we're between
         let startIdx = 0;
-        while (startIdx < keyPoints.length - 1) {
-            let nextTime = keyPoints[startIdx + 1].time;
-            let currentTime = keyPoints[startIdx].time;
+        while (startIdx < this._keyPoints.length - 1) {
+            let nextTime = this._keyPoints[startIdx + 1].time;
+            let currentTime = this._keyPoints[startIdx].time;
 
             // Handle day wrapping - if we cross midnight
             if (nextTime < currentTime) {
@@ -145,44 +181,50 @@ export class LightService {
         }
 
         // If we went past the end, wrap around
-        if (startIdx >= keyPoints.length - 1) {
+        if (startIdx >= this._keyPoints.length - 1) {
             startIdx = 0;
         }
 
         const endIdx = startIdx + 1;
 
-        // Calculate interpolation factor and interpolate colors
+        // Calculate interpolation factor
         let t = this.mathUtils.smootherstep(
-            keyPoints[startIdx].time,
-            keyPoints[endIdx].time,
+            this._keyPoints[startIdx].time,
+            this._keyPoints[endIdx].time,
             worldTime
         );
 
-        this.targetZenithColor = Color3.Lerp(
-            keyPoints[startIdx].zenith,
-            keyPoints[endIdx].zenith,
-            t
+        // Interpolate colors using LerpToRef to avoid creating new objects
+        Color3.LerpToRef(
+            this._keyPoints[startIdx].zenith!,
+            this._keyPoints[endIdx].zenith!,
+            t,
+            this.targetZenithColor
         );
 
-        this.targetHorizonColor = Color3.Lerp(
-            keyPoints[startIdx].horizon,
-            keyPoints[endIdx].horizon,
-            t
+        Color3.LerpToRef(
+            this._keyPoints[startIdx].horizon!,
+            this._keyPoints[endIdx].horizon!,
+            t,
+            this.targetHorizonColor
         );
     }
 
     // Update current colors with smooth transition to targets
     private updateColorTransitions(): void {
-        this.currentZenithColor = Color3.Lerp(
+        // Use LerpToRef instead of Lerp to avoid creating new Color3 objects
+        Color3.LerpToRef(
             this.currentZenithColor,
             this.targetZenithColor,
-            this.colorTransitionSpeed
+            this.colorTransitionSpeed,
+            this.currentZenithColor
         );
 
-        this.currentHorizonColor = Color3.Lerp(
+        Color3.LerpToRef(
             this.currentHorizonColor,
             this.targetHorizonColor,
-            this.colorTransitionSpeed
+            this.colorTransitionSpeed,
+            this.currentHorizonColor
         );
     }
 
@@ -205,18 +247,13 @@ export class LightService {
         // PART 2: AMBIENT COLOR - Bell curve blending approach
         const dayFactorForColor = 1.0 - nightFactor;
         
-        // Start with base sky color blend
-        let ambientColor = Color3.Lerp(
+        // Start with base sky color blend using LerpToRef
+        Color3.LerpToRef(
             this.currentZenithColor,
             this.currentHorizonColor,
-            0.5 + dayFactorForColor * 0.15 // 0.5 at night to 0.65 during day
+            0.5 + dayFactorForColor * 0.15, // 0.5 at night to 0.65 during day
+            this._tempAmbientColor
         );
-
-        // Define key colors
-        const dayColor = new Color3(0.9, 0.9, 0.95);       // Slightly off-white
-        const sunriseColor = new Color3(0.75, 0.6, 0.43);  // Warm golden
-        const sunsetColor = new Color3(0.7, 0.45, 0.3);    // Warm amber
-        const nightColor = new Color3(0.1, 0.15, 0.35);    // Cool blue
 
         // Calculate bell curve weights for smooth blending
         const dayWeight = this.mathUtils.bellCurve(worldTime, noon, 6.0);
@@ -225,29 +262,29 @@ export class LightService {
         const nightWeight = nightFactor; // Smooth step from after sunset to before sunrise
 
         // Blend the colors using weights - influence factors control blend strength
+        // Use LerpToRef to modify _tempAmbientColor in place
         if (dayWeight > 0) {
-            ambientColor = Color3.Lerp(ambientColor, dayColor, dayWeight * 0.45);
+            Color3.LerpToRef(this._tempAmbientColor, this._dayColor, dayWeight * 0.45, this._tempAmbientColor);
         }
         if (sunriseWeight > 0) {
-            ambientColor = Color3.Lerp(ambientColor, sunriseColor, sunriseWeight * 0.6);
+            Color3.LerpToRef(this._tempAmbientColor, this._sunriseColor, sunriseWeight * 0.6, this._tempAmbientColor);
         }
         if (sunsetWeight > 0) {
-            ambientColor = Color3.Lerp(ambientColor, sunsetColor, sunsetWeight * 0.6);
+            Color3.LerpToRef(this._tempAmbientColor, this._sunsetColor, sunsetWeight * 0.6, this._tempAmbientColor);
         }
         if (nightWeight > 0) {
-            ambientColor = Color3.Lerp(ambientColor, nightColor, nightWeight * 0.5);
+            Color3.LerpToRef(this._tempAmbientColor, this._nightColor, nightWeight * 0.5, this._tempAmbientColor);
         }
 
         // Calculate ground color with subtle color shift for realism
-        const groundTint = new Color3(
-            Math.max(0, ambientColor.r * 0.3 - 0.03),
-            Math.max(0, ambientColor.g * 0.3),
-            Math.max(0, ambientColor.b * 0.3 + 0.04)
-        );
+        // Set values directly instead of creating a new Color3
+        this._groundTint.r = Math.max(0, this._tempAmbientColor.r * 0.3 - 0.03);
+        this._groundTint.g = Math.max(0, this._tempAmbientColor.g * 0.3);
+        this._groundTint.b = Math.max(0, this._tempAmbientColor.b * 0.3 + 0.04);
 
         // Apply to the hemispheric light
-        this.skyGlowLight.diffuse = ambientColor;
-        this.skyGlowLight.groundColor = groundTint;
+        this.skyGlowLight.diffuse.copyFrom(this._tempAmbientColor);
+        this.skyGlowLight.groundColor.copyFrom(this._groundTint);
         this.skyGlowLight.intensity = ambientIntensity;
     }
 

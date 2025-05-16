@@ -10,6 +10,7 @@ import { MathUtils } from '../utils/math-utils.service';
   providedIn: 'root'
 })
 export class CelestialService {
+    // Use single timeState object that gets updated, not recreated
     private timeState: TimeState;
     private timeStateSubject = new BehaviorSubject<TimeState>(null!);
     
@@ -18,6 +19,32 @@ export class CelestialService {
     private _moonDir = new Vector3(0, 0, 0);
     private _sunColor = new Color3(0, 0, 0);
     private _moonColor = new Color3(0, 0, 0);
+    
+    // Pre-allocated celestial positions object for getCelestialPositions
+    private _celestialPositions: any = {
+        worldTime: 0,
+        normalizedTime: 0,
+        sunDir: this._sunDir,
+        moonDir: this._moonDir,
+        sunHeight: 0,
+        moonHeight: 0,
+        isDay: false,
+        isNight: false,
+        isDawn: false,
+        isDusk: false,
+        dayFactor: 0,
+        nightFactor: 0,
+        dawnFactor: 0,
+        duskFactor: 0,
+        sunVisibility: 0,
+        moonOpacity: 0,
+        starVisibility: 0,
+        sunIntensity: 0,
+        moonIntensity: 0,
+        sunColor: this._sunColor,
+        moonColor: this._moonColor,
+        keyTimes: null
+    };
     
     // Key time points in 24h format
     private readonly KEY_TIMES = {
@@ -35,7 +62,7 @@ export class CelestialService {
         private timeService: TimeService,
         private mathUtils: MathUtils
     ) {
-        // Initialize with default values
+        // Initialize with default values in constructor
         this.timeState = {
             worldTime: 0, normalizedTime: 0,
             dayFactor: 0, nightFactor: 0, dawnFactor: 0, duskFactor: 0,
@@ -45,6 +72,9 @@ export class CelestialService {
             continuousRotation: 0,
             keyTimes: this.KEY_TIMES
         };
+        
+        // Set the key times reference in the celestial positions object
+        this._celestialPositions.keyTimes = this.KEY_TIMES;
         
         this.updateTimeState(); // Initial calculation
     }
@@ -181,28 +211,44 @@ export class CelestialService {
             starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime); // Fade out
         }
         
-        // Get current sun and moon colors
+        // Get current sun and moon colors - use pre-allocated colors
         this.getSunColor(worldTime, this.KEY_TIMES.sunrise, this.KEY_TIMES.noon, this.KEY_TIMES.sunset, this._sunColor);
         this._moonColor.set(0.8 * moonOpacity, 0.8 * moonOpacity, 1.0 * moonOpacity);
         
-        // Update the time state with calculated values
-        this.timeState = {
-            worldTime,
-            normalizedTime,
-            dayFactor,
-            nightFactor,
-            dawnFactor,
-            duskFactor,
-            starVisibility,
-            sunVisibility,
-            moonOpacity,
-            sunHeight: sunY,
-            moonHeight: -sunY,
-            sunIntensity,
-            moonIntensity,
-            continuousRotation: this.timeService.getContinuousRotation(),
-            keyTimes: this.KEY_TIMES
-        };
+        // Update the time state with calculated values - modify existing object instead of creating a new one
+        this.timeState.worldTime = worldTime;
+        this.timeState.normalizedTime = normalizedTime;
+        this.timeState.dayFactor = dayFactor;
+        this.timeState.nightFactor = nightFactor;
+        this.timeState.dawnFactor = dawnFactor;
+        this.timeState.duskFactor = duskFactor;
+        this.timeState.starVisibility = starVisibility;
+        this.timeState.sunVisibility = sunVisibility;
+        this.timeState.moonOpacity = moonOpacity;
+        this.timeState.sunHeight = sunY;
+        this.timeState.moonHeight = -sunY;
+        this.timeState.sunIntensity = sunIntensity;
+        this.timeState.moonIntensity = moonIntensity;
+        this.timeState.continuousRotation = this.timeService.getContinuousRotation();
+        
+        // Update the pre-allocated celestial positions object for GetCelestialPositions
+        this._celestialPositions.worldTime = worldTime;
+        this._celestialPositions.normalizedTime = normalizedTime;
+        this._celestialPositions.sunHeight = sunY;
+        this._celestialPositions.moonHeight = -sunY;
+        this._celestialPositions.isDay = dayFactor > 0.5;
+        this._celestialPositions.isNight = nightFactor > 0.5;
+        this._celestialPositions.isDawn = dawnFactor > 0.5;
+        this._celestialPositions.isDusk = duskFactor > 0.5;
+        this._celestialPositions.dayFactor = dayFactor;
+        this._celestialPositions.nightFactor = nightFactor;
+        this._celestialPositions.dawnFactor = dawnFactor;
+        this._celestialPositions.duskFactor = duskFactor;
+        this._celestialPositions.sunVisibility = sunVisibility;
+        this._celestialPositions.moonOpacity = moonOpacity;
+        this._celestialPositions.starVisibility = starVisibility;
+        this._celestialPositions.sunIntensity = sunIntensity;
+        this._celestialPositions.moonIntensity = moonIntensity;
         
         // Notify observers about the updated state
         this.timeStateSubject.next(this.timeState);
@@ -219,31 +265,9 @@ export class CelestialService {
     }
     
     // Gets celestial positions for the current world time (kept for backward compatibility)
+    // Now returns a pre-allocated object instead of creating a new one each time
     getCelestialPositions() {
-        return {
-            worldTime: this.timeState.worldTime,
-            normalizedTime: this.timeState.normalizedTime,
-            sunDir: this._sunDir,
-            moonDir: this._moonDir,
-            sunHeight: this.timeState.sunHeight,
-            moonHeight: this.timeState.moonHeight,
-            isDay: this.timeState.dayFactor > 0.5,
-            isNight: this.timeState.nightFactor > 0.5,
-            isDawn: this.timeState.dawnFactor > 0.5,
-            isDusk: this.timeState.duskFactor > 0.5,
-            dayFactor: this.timeState.dayFactor,
-            nightFactor: this.timeState.nightFactor,
-            dawnFactor: this.timeState.dawnFactor,
-            duskFactor: this.timeState.duskFactor,
-            sunVisibility: this.timeState.sunVisibility,
-            moonOpacity: this.timeState.moonOpacity,
-            starVisibility: this.timeState.starVisibility,
-            sunIntensity: this.timeState.sunIntensity,
-            moonIntensity: this.timeState.moonIntensity,
-            sunColor: this._sunColor,
-            moonColor: this._moonColor,
-            keyTimes: this.KEY_TIMES
-        };
+        return this._celestialPositions;
     }
     
     isNight(): boolean { return this.timeState.nightFactor > 0.5; }
@@ -278,44 +302,5 @@ export class CelestialService {
         }
         
         return colorRef;
-    }
-    
-    // Debug function to test celestial positions at specific times
-    debugCelestialPositions(): void {
-        const times = [0, 5, 6, 7, 12, 17, 18, 19, 24];
-        const labels = ["Midnight", "Dawn Start", "Sunrise", "Dawn End", "Noon", 
-                        "Dusk Start", "Sunset", "Dusk End", "Midnight"];
-        
-        console.group("Celestial Positions Debug");
-        for (let i = 0; i < times.length; i++) {
-            const time = times[i];
-            const currentTime = this.timeService.getWorldTime(); // Store current time
-            
-            // Override time for testing
-            const timeService = this.timeService as any;
-            timeService.elapsed = (time / 24) * timeService.dayDurationInSeconds;
-            
-            this.updateTimeState(); // Update time state for debug
-            const state = this.getTimeState();
-            
-            console.log(`${labels[i]} (${time}h):`, {
-                sunHeight: state.sunHeight.toFixed(2), 
-                moonHeight: state.moonHeight.toFixed(2),
-                dayFactor: state.dayFactor.toFixed(2),
-                nightFactor: state.nightFactor.toFixed(2),
-                dawnFactor: state.dawnFactor.toFixed(2),
-                duskFactor: state.duskFactor.toFixed(2),
-                sunIntensity: state.sunIntensity.toFixed(2),
-                moonIntensity: state.moonIntensity.toFixed(2),
-                sunVisibility: state.sunVisibility.toFixed(2),
-                moonOpacity: state.moonOpacity.toFixed(2),
-                starVisibility: state.starVisibility.toFixed(2)
-            });
-            
-            // Restore actual time
-            timeService.elapsed = (currentTime / 24) * timeService.dayDurationInSeconds;
-            this.updateTimeState(); // Update state back to current time
-        }
-        console.groupEnd();
     }
 }

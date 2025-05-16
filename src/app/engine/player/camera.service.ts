@@ -40,6 +40,29 @@ export interface FreeCameraOptions {
   providedIn: 'root'
 })
 export class CameraService {
+    // Animation pool to reuse Animation objects
+    private _positionAnimationPool: Animation[] = [];
+    private _targetAnimationPool: Animation[] = [];
+    
+    // Pre-allocated objects for animation calculations
+    private _tempVector = new Vector3(0, 0, 0);
+    
+    // Pre-allocated keyframe arrays and objects
+    private _positionKeys: { frame: number, value: Vector3 }[] = [
+        { frame: 0, value: new Vector3(0, 0, 0) },
+        { frame: 60, value: new Vector3(0, 0, 0) }
+    ];
+    
+    private _targetKeys: { frame: number, value: Vector3 }[] = [
+        { frame: 0, value: new Vector3(0, 0, 0) },
+        { frame: 60, value: new Vector3(0, 0, 0) }
+    ];
+    
+    // Cache common animation parameters
+    private readonly ANIMATION_FPS = 60;
+    private readonly ANIMATION_TYPE = Animation.ANIMATIONTYPE_VECTOR3;
+    private readonly ANIMATION_LOOP_MODE = Animation.ANIMATIONLOOPMODE_CONSTANT;
+
     // Creates an ArcRotateCamera with intuitive orbit controls
     createArcRotateCamera(scene: Scene, canvas: HTMLCanvasElement, options: ArcRotateCameraOptions = {}): ArcRotateCamera {
         const {
@@ -144,15 +167,15 @@ export class CameraService {
     focusOn(camera: TargetCamera, targetPosition: Vector3, distance?: number): void {
         if (camera instanceof ArcRotateCamera && distance !== undefined) {
             // For ArcRotateCamera, set target and radius
-            camera.target = targetPosition;
+            camera.target.copyFrom(targetPosition);
             camera.radius = distance;
         } else {
             // For other cameras, set target and update position if distance is specified
             if (camera instanceof FreeCamera && distance !== undefined) {
                 // Calculate position that's 'distance' away from target in current view direction
-                const direction = camera.getDirection(Vector3.Forward());
+                const direction = camera.getDirection(this._tempVector);
                 const newPosition = targetPosition.subtract(direction.scale(distance));
-                camera.position = newPosition;
+                camera.position.copyFrom(newPosition);
             }
             
             // Set target for any TargetCamera
@@ -165,72 +188,110 @@ export class CameraService {
         const scene = camera.getScene();
         
         // Create animation for target (all target cameras)
-        scene.beginDirectAnimation(
-            camera, 
-            [this.createTargetAnimation(camera, targetPosition)], 
-            0, 
-            60 * duration / 1000, // Frames at 60fps
-            false // Not looping
-        );
+        const targetAnimation = this.getOrCreateTargetAnimation(camera);
+        this.setTargetAnimationKeys(camera, targetPosition);
         
         // Create animation for position
+        const positionAnimation = this.getOrCreatePositionAnimation(camera);
+        this.setPositionAnimationKeys(camera, cameraPosition);
+        
+        // Calculate frame count based on duration
+        const frames = this.ANIMATION_FPS * duration / 1000;
+        
+        // Begin animations
         scene.beginDirectAnimation(
             camera, 
-            [this.createPositionAnimation(camera, cameraPosition)], 
+            [targetAnimation, positionAnimation], 
             0, 
-            60 * duration / 1000,
-            false
+            frames, 
+            false // Not looping
         );
     }
     
-    // Creates a position animation for a camera
-    private createPositionAnimation(camera: TargetCamera, targetPosition: Vector3) {
-        // Animation creation would go here, using Babylon's Animation class
-        // This is a simplified implementation
-        const animation = new Animation(
+    // Get an animation from the pool or create a new one for position
+    private getOrCreatePositionAnimation(camera: TargetCamera): Animation {
+        if (this._positionAnimationPool.length > 0) {
+            return this._positionAnimationPool.pop()!;
+        }
+        
+        return new Animation(
             "cameraPosition",
             "position",
-            60, // Frames per second
-            Animation.ANIMATIONTYPE_VECTOR3,
-            Animation.ANIMATIONLOOPMODE_CONSTANT
+            this.ANIMATION_FPS,
+            this.ANIMATION_TYPE,
+            this.ANIMATION_LOOP_MODE
         );
-        
-        // Set keyframes
-        const keys = [];
-        keys.push({ frame: 0, value: camera.position.clone() });
-        keys.push({ frame: 60, value: targetPosition });
-        animation.setKeys(keys);
-        
-        return animation;
     }
     
-    // Creates a target animation for a camera
-    private createTargetAnimation(camera: TargetCamera, targetPosition: Vector3) {
-        // Different handling based on camera type
-        let propertyPath = "target";
-        let currentTarget = targetPosition.clone();
-        
-        if (camera instanceof ArcRotateCamera) {
-            currentTarget = camera.target.clone();
-        } else if (camera instanceof FreeCamera) {
-            // For FreeCamera we need a different approach since it doesn't have a direct target property
-            propertyPath = "_currentTarget";
-            currentTarget = camera.getTarget();
+    // Get an animation from the pool or create a new one for target
+    private getOrCreateTargetAnimation(camera: TargetCamera): Animation {
+        if (this._targetAnimationPool.length > 0) {
+            return this._targetAnimationPool.pop()!;
         }
-        const animation = new Animation(
+        
+        // Different property path based on camera type
+        let propertyPath = "target";
+        if (camera instanceof FreeCamera) {
+            propertyPath = "_currentTarget";
+        }
+        
+        return new Animation(
             "cameraTarget",
             propertyPath,
-            60,
-            Animation.ANIMATIONTYPE_VECTOR3,
-            Animation.ANIMATIONLOOPMODE_CONSTANT
+            this.ANIMATION_FPS,
+            this.ANIMATION_TYPE,
+            this.ANIMATION_LOOP_MODE
         );
+    }
+    
+    // Return animation to the pool when it's finished
+    private returnAnimationsToPool(animations: Animation[]): void {
+        for (const animation of animations) {
+            if (animation.targetProperty === "position") {
+                this._positionAnimationPool.push(animation);
+            } else if (animation.targetProperty === "target" || animation.targetProperty === "_currentTarget") {
+                this._targetAnimationPool.push(animation);
+            }
+        }
+    }
+    
+    // Setup position animation keys without creating new arrays
+    private setPositionAnimationKeys(camera: TargetCamera, targetPosition: Vector3): void {
+        // Reuse pre-allocated key array and objects
+        this._positionKeys[0].value.copyFrom(camera.position);
+        this._positionKeys[1].value.copyFrom(targetPosition);
         
-        // Set keyframes
-        const keys = [];
-        keys.push({ frame: 0, value: currentTarget });
-        keys.push({ frame: 60, value: targetPosition });
-        animation.setKeys(keys);
+        // Avoid creating a new array by modifying existing keys array
+        const positionAnimation = camera.animations?.find(a => a.targetProperty === "position");
+        if (positionAnimation) {
+            positionAnimation.setKeys(this._positionKeys);
+        }
+    }
+    
+    // Setup target animation keys without creating new arrays
+    private setTargetAnimationKeys(camera: TargetCamera, targetPosition: Vector3): void {
+        // Get current target based on camera type
+        if (camera instanceof ArcRotateCamera) {
+            this._targetKeys[0].value.copyFrom(camera.target);
+        } else if (camera instanceof FreeCamera) {
+            // Fix: getTarget() returns a Vector3, doesn't take arguments
+            const currentTarget = camera.getTarget();
+            this._targetKeys[0].value.copyFrom(currentTarget);
+        }
         
-        return animation;
+        this._targetKeys[1].value.copyFrom(targetPosition);
+        
+        // Find the target animation and set keys
+        const targetPropertyPath = camera instanceof FreeCamera ? "_currentTarget" : "target";
+        const targetAnimation = camera.animations?.find(a => a.targetProperty === targetPropertyPath);
+        if (targetAnimation) {
+            targetAnimation.setKeys(this._targetKeys);
+        }
+    }
+    
+    // Clean up resources when no longer needed
+    dispose(): void {
+        this._positionAnimationPool.length = 0;
+        this._targetAnimationPool.length = 0;
     }
 }

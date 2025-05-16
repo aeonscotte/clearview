@@ -88,14 +88,15 @@ export class Scene001 extends BaseScene {
             height: 60,
             subdivisions: 4,
         });
-
+    
         ground.material = this.materialService.createGroundMaterial(
             '/assets/materials/terrain/rocky-rugged-terrain_1/',
-            3
+            3,
+            this.scene  // Pass the scene here
         );
-
+    
         ground.receiveShadows = true;
-
+    
         const debugSphere = MeshBuilder.CreateSphere('debugSphere', { diameter: 1 }, this.scene);
         debugSphere.position = new Vector3(0, 1, 0);
         debugSphere.material = ground.material;

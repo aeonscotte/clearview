@@ -16,6 +16,15 @@ export class AtmosphereService {
     private currentFogDensity: number = 0.001;
     private targetFogDensity: number = 0.001;
     private fogTransitionSpeed: number = 0.05;
+    
+    // Pre-allocated Color3 objects for day period tints
+    private _tempDaytimeTint: Color3 = new Color3(0.85, 0.85, 0.9);
+    private _tempSunriseTint: Color3 = new Color3(0.85, 0.65, 0.45);
+    private _tempSunsetTint: Color3 = new Color3(0.8, 0.5, 0.35);
+    private _tempNightTint: Color3 = new Color3(0.02, 0.03, 0.08);
+    
+    // Temporary workspace Color3 for calculations
+    private _tempColor: Color3 = new Color3(0, 0, 0);
 
     constructor(
         private timeService: TimeService,
@@ -55,34 +64,31 @@ export class AtmosphereService {
 
         // Start with base horizon/zenith blend based on time of day
         const zenithInfluence = 0.12 + midnightFactor * 0.13; // 12% at day, up to 25% at night
-        this.targetFogColor = Color3.Lerp(
+        
+        // Using LerpToRef instead of Lerp to avoid creating a new Color3
+        Color3.LerpToRef(
             skyColors.horizon,
             skyColors.zenith,
-            zenithInfluence
+            zenithInfluence,
+            this.targetFogColor
         );
-
-        // Define our key colors for different periods
-        const daytimeTint = new Color3(0.85, 0.85, 0.9);      // Slight blue tint during day
-        const sunriseTint = new Color3(0.85, 0.65, 0.45);     // Golden sunrise
-        const sunsetTint = new Color3(0.8, 0.5, 0.35);        // Amber sunset
-        const nightTint = new Color3(0.02, 0.03, 0.08);       // Deep blue-purple night
 
         // Apply tinting based on time of day with bell curve blending
         if (noonFactor > 0) {
             // Midday - slightly enhance blue for atmospheric scattering
-            this.targetFogColor = Color3.Lerp(this.targetFogColor, daytimeTint, noonFactor * 0.2);
+            Color3.LerpToRef(this.targetFogColor, this._tempDaytimeTint, noonFactor * 0.2, this.targetFogColor);
         }
         if (sunriseFactor > 0) {
             // Sunrise golden hour
-            this.targetFogColor = Color3.Lerp(this.targetFogColor, sunriseTint, sunriseFactor * 0.4);
+            Color3.LerpToRef(this.targetFogColor, this._tempSunriseTint, sunriseFactor * 0.4, this.targetFogColor);
         }
         if (sunsetFactor > 0) {
             // Sunset golden hour
-            this.targetFogColor = Color3.Lerp(this.targetFogColor, sunsetTint, sunsetFactor * 0.4);
+            Color3.LerpToRef(this.targetFogColor, this._tempSunsetTint, sunsetFactor * 0.4, this.targetFogColor);
         }
         if (midnightFactor > 0) {
             // Nighttime blue shift
-            this.targetFogColor = Color3.Lerp(this.targetFogColor, nightTint, midnightFactor * 0.3);
+            Color3.LerpToRef(this.targetFogColor, this._tempNightTint, midnightFactor * 0.3, this.targetFogColor);
         }
 
         // PART 2: FOG DENSITY - Continuous function with time-based modulation
@@ -116,10 +122,12 @@ export class AtmosphereService {
         this.targetFogDensity = Math.max(0.0002, Math.min(0.008, this.targetFogDensity));
 
         // PART 3: SMOOTH TRANSITIONS
-        this.currentFogColor = Color3.Lerp(
+        // Using LerpToRef for smooth color transition
+        Color3.LerpToRef(
             this.currentFogColor,
             this.targetFogColor,
-            this.fogTransitionSpeed
+            this.fogTransitionSpeed,
+            this.currentFogColor
         );
 
         this.currentFogDensity = this.mathUtils.lerp(
@@ -129,7 +137,7 @@ export class AtmosphereService {
         );
 
         // Apply to scene
-        scene.fogColor = this.currentFogColor;
+        scene.fogColor.copyFrom(this.currentFogColor);
         scene.fogDensity = this.currentFogDensity;
     }
 }

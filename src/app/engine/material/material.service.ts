@@ -24,6 +24,49 @@ export interface BasicTextureOptions {
   providedIn: 'root'
 })
 export class MaterialService {
+    // Material cache for reuse
+    private _materialCache: Map<string, PBRMaterial | StandardMaterial> = new Map();
+    
+    // Texture cache for reuse
+    private _textureCache: Map<string, Texture> = new Map();
+    
+    // Get a cached texture or create a new one
+    private getOrCreateTexture(url: string, scene: Scene): Texture {
+        if (this._textureCache.has(url)) {
+            return this._textureCache.get(url)!;
+        }
+        
+        const texture = new Texture(url, scene);
+        this._textureCache.set(url, texture);
+        return texture;
+    }
+    
+    // Get a cached material or create a new one
+    private getOrCreatePBRMaterial(name: string, scene: Scene): PBRMaterial {
+        const cacheKey = `pbr:${name}`;
+        
+        if (this._materialCache.has(cacheKey)) {
+            return this._materialCache.get(cacheKey) as PBRMaterial;
+        }
+        
+        const material = new PBRMaterial(name, scene);
+        this._materialCache.set(cacheKey, material);
+        return material;
+    }
+    
+    // Get a cached standard material or create a new one
+    private getOrCreateStandardMaterial(name: string, scene: Scene): StandardMaterial {
+        const cacheKey = `std:${name}`;
+        
+        if (this._materialCache.has(cacheKey)) {
+            return this._materialCache.get(cacheKey) as StandardMaterial;
+        }
+        
+        const material = new StandardMaterial(name, scene);
+        this._materialCache.set(cacheKey, material);
+        return material;
+    }
+
     applyPBRMaterial(scene: Scene, mesh: Mesh, options: PBRMaterialOptions): void {
         const {
             name = 'pbr-material',
@@ -34,18 +77,21 @@ export class MaterialService {
             metallic = 0.5,
         } = options;
 
-        const material = new PBRMaterial(name, scene);
+        // Get or create material instead of always creating new
+        const material = this.getOrCreatePBRMaterial(name, scene);
 
+        // Apply textures if provided
         if (albedoTextureUrl) {
-            material.albedoTexture = new Texture(albedoTextureUrl, scene);
+            material.albedoTexture = this.getOrCreateTexture(albedoTextureUrl, scene);
         }
         if (normalTextureUrl) {
-            material.bumpTexture = new Texture(normalTextureUrl, scene);
+            material.bumpTexture = this.getOrCreateTexture(normalTextureUrl, scene);
         }
         if (metallicTextureUrl) {
-            material.metallicTexture = new Texture(metallicTextureUrl, scene);
+            material.metallicTexture = this.getOrCreateTexture(metallicTextureUrl, scene);
         }
 
+        // Apply material properties
         material.roughness = roughness;
         material.metallic = metallic;
 
@@ -58,30 +104,43 @@ export class MaterialService {
             textureUrl,
         } = options;
 
-        const material = new StandardMaterial(name, scene);
-        material.diffuseTexture = new Texture(textureUrl, scene);
+        // Get or create material
+        const material = this.getOrCreateStandardMaterial(name, scene);
+        material.diffuseTexture = this.getOrCreateTexture(textureUrl, scene);
         mesh.material = material;
     }
 
-    createGroundMaterial(materialUrl: string, tileSize: number): PBRMaterial {
-        // Texture loading
-        const albedoTex = new Texture(`${materialUrl}albedo.png`);
-        const normHeightTex = new Texture(`${materialUrl}normalHeight.png`);
-        const aoTex = new Texture(`${materialUrl}ao.png`);
-        const metalRoughTex = new Texture(`${materialUrl}metalRough.png`);
-
-        // Tiling
+   createGroundMaterial(materialUrl: string, tileSize: number, scene: Scene): PBRMaterial {
+        // Use a unique cache key for this ground material
+        const cacheKey = `ground:${materialUrl}:${tileSize}`;
+        
+        if (this._materialCache.has(cacheKey)) {
+            return this._materialCache.get(cacheKey) as PBRMaterial;
+        }
+        
+        // If not cached, create new textures and material
+        const albedoTexUrl = `${materialUrl}albedo.png`;
+        const normHeightTexUrl = `${materialUrl}normalHeight.png`;
+        const aoTexUrl = `${materialUrl}ao.png`;
+        const metalRoughTexUrl = `${materialUrl}metalRough.png`;
+        
+        // Get or create textures - pass scene object
+        const albedoTex = this.getOrCreateTexture(albedoTexUrl, scene);
+        const normHeightTex = this.getOrCreateTexture(normHeightTexUrl, scene);
+        const aoTex = this.getOrCreateTexture(aoTexUrl, scene);
+        const metalRoughTex = this.getOrCreateTexture(metalRoughTexUrl, scene);
+    
+        // Set texture tiling
         [albedoTex, normHeightTex, aoTex, metalRoughTex].forEach(tex => {
             tex.uScale = tileSize;
             tex.vScale = tileSize;
         });
-
-        // Material setup
-        const material = new PBRMaterial("groundMaterial");
-
+    
+        // Create the material
+        const material = new PBRMaterial("groundMaterial", scene);
+    
         material.albedoTexture = albedoTex;
         material.bumpTexture = normHeightTex;
-
         material.useParallax = true;
         material.useParallaxOcclusion = true;
         material.parallaxScaleBias = 0.03;
@@ -90,7 +149,25 @@ export class MaterialService {
         material.ambientTexture = aoTex;
         material.ambientTextureStrength = 0.3;
         material.bumpTexture.level = 0.5;
-
+        
+        // Cache the material for future reuse
+        this._materialCache.set(cacheKey, material);
+    
         return material;
+    }
+    
+    // Clear material and texture caches when no longer needed
+    clearCache(): void {
+        this._materialCache.clear();
+        this._textureCache.clear();
+    }
+    
+    // Remove specific material from cache
+    removeMaterialFromCache(name: string): void {
+        const pbrKey = `pbr:${name}`;
+        const stdKey = `std:${name}`;
+        
+        this._materialCache.delete(pbrKey);
+        this._materialCache.delete(stdKey);
     }
 }

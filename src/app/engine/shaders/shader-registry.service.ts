@@ -18,6 +18,13 @@ export interface ShaderErrorHandlingOptions {
 export class ShaderRegistryService {
     // Tracks registered shaders to prevent duplicate compilation
     private registeredShaders = new Set<string>();
+    
+    // Cache for shader names array to avoid recreating it
+    private _shaderNamesCache: string[] = [];
+    private _shaderNamesCacheDirty = true;
+    
+    // Reusable error message buffer
+    private _errorMessagePrefix = 'Failed to register shader "';
 
     // Default error handling options
     private defaultErrorOptions: ShaderErrorHandlingOptions = {
@@ -51,10 +58,14 @@ export class ShaderRegistryService {
             // Mark as registered
             this.registeredShaders.add(name);
             
+            // Mark the cache as dirty since we added a new shader
+            this._shaderNamesCacheDirty = true;
+            
             return true;
         } catch (error) {
             if (options.logErrors) {
-                console.error(`Failed to register shader "${name}":`, error);
+                // Use string concatenation instead of template literals to reduce allocations
+                console.error(this._errorMessagePrefix + name + '":', error);
             }
             
             if (!options.silentFail) {
@@ -72,7 +83,13 @@ export class ShaderRegistryService {
 
     // Gets the list of all registered shader names
     getRegisteredShaderNames(): string[] {
-        return Array.from(this.registeredShaders);
+        // Only recreate the array if it's dirty
+        if (this._shaderNamesCacheDirty) {
+            this._shaderNamesCache = Array.from(this.registeredShaders);
+            this._shaderNamesCacheDirty = false;
+        }
+        
+        return this._shaderNamesCache;
     }
 
     // Unregisters a shader - primarily for testing/cleanup
@@ -84,10 +101,18 @@ export class ShaderRegistryService {
         // Remove from tracking
         this.registeredShaders.delete(name);
         
+        // Mark cache as dirty
+        this._shaderNamesCacheDirty = true;
+        
         // Remove from BabylonJS store if exists
         delete Effect.ShadersStore[`${name}VertexShader`];
         delete Effect.ShadersStore[`${name}FragmentShader`];
         
         return true;
+    }
+    
+    // Get count of registered shaders - efficient alternative to array creation
+    getShaderCount(): number {
+        return this.registeredShaders.size;
     }
 }

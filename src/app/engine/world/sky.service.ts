@@ -1,7 +1,7 @@
 // src/app/engine/world/sky.service.ts
 import { Injectable } from '@angular/core';
 import { Scene } from '@babylonjs/core/scene';
-import { MeshBuilder, ShaderMaterial, Mesh } from '@babylonjs/core';
+import { MeshBuilder, ShaderMaterial, Mesh, Vector3, Color3 } from '@babylonjs/core';
 import { TimeService } from '../physics/time.service';
 import { CelestialService } from './celestial.service';
 import { ShaderRegistryService } from '../shaders/shader-registry.service';
@@ -12,10 +12,11 @@ import { ShaderRegistryService } from '../shaders/shader-registry.service';
 export class SkyService {
     private skyDome: Mesh | null = null;
     private skyMaterial: ShaderMaterial | null = null;
-    private readonly SHADER_NAME = 'enhancedSky';
-
-    // Add a dedicated material for paused state
     private pausedMaterial: ShaderMaterial | null = null;
+    private readonly SHADER_NAME = 'enhancedSky';
+    
+    // Pre-allocated temporary objects for material updates
+    private _tempInt = { isPaused: 0 };
 
     constructor(
         private timeService: TimeService,
@@ -52,13 +53,37 @@ export class SkyService {
                 "worldViewProjection", "sunPosition", "moonPosition",
                 "iTime", "starRotation", "dayFactor", "nightFactor",
                 "dawnFactor", "duskFactor", "sunVisibility",
-                "moonOpacity", "starVisibility"
+                "moonOpacity", "starVisibility", "isPaused"
             ]
         });
 
         this.skyMaterial.backFaceCulling = false;
         this.updateShaderUniforms(); // Apply initial uniforms
         this.skyDome.material = this.skyMaterial;
+        
+        // Create paused material up front to avoid creating it during pause
+        this.createPausedMaterial(scene);
+    }
+    
+    // Create the paused material once during initialization
+    private createPausedMaterial(scene: Scene): void {
+        this.pausedMaterial = new ShaderMaterial("pausedSkyMaterial", scene, {
+            vertex: this.SHADER_NAME,
+            fragment: this.SHADER_NAME
+        }, {
+            attributes: ["position", "normal"],
+            uniforms: [
+                "worldViewProjection", "sunPosition", "moonPosition",
+                "iTime", "starRotation", "dayFactor", "nightFactor",
+                "dawnFactor", "duskFactor", "sunVisibility",
+                "moonOpacity", "starVisibility", "isPaused"
+            ]
+        });
+        
+        this.pausedMaterial.backFaceCulling = false;
+        
+        // Initialize with 1 for paused state
+        this.pausedMaterial.setInt("isPaused", 1);
     }
 
     update(): void {
@@ -72,20 +97,18 @@ export class SkyService {
         }
     }
 
-    // Called when pause state changes - create a snapshot of the current sky
+    // Called when pause state changes
     handlePauseChange(isPaused: boolean): void {
         if (!this.skyDome) return;
 
         if (isPaused) {
-            // Take a snapshot of the current sky and freeze it completely
-            // We'll use a new material instance that doesn't get updated
-            const scene = this.skyDome.getScene();
-
-            // Clone the current material - this creates a static copy with current values
-            if (!this.pausedMaterial) {
-                this.pausedMaterial = this.skyMaterial?.clone("pausedSkyMaterial") || null;
-            } else {
-                // Update the paused material with current values
+            // Ensure paused material exists
+            if (!this.pausedMaterial && this.skyMaterial) {
+                this.createPausedMaterial(this.skyDome.getScene());
+            }
+            
+            // Update the paused material with current values
+            if (this.pausedMaterial && this.skyMaterial) {
                 this.copyMaterialValues(this.skyMaterial, this.pausedMaterial);
             }
 
@@ -96,19 +119,23 @@ export class SkyService {
         } else {
             // Resume - switch back to the dynamic material
             if (this.skyMaterial) {
+                // Set isPaused uniform to 0 (unpaused)
+                this.skyMaterial.setInt("isPaused", 0);
                 this.skyDome.material = this.skyMaterial;
             }
         }
     }
 
-    // Helper to copy material values
-    private copyMaterialValues(source: ShaderMaterial | null, target: ShaderMaterial | null): void {
-        if (!source || !target) return;
-
-        // Copy all uniforms from source to target
+    // Copy material values without creating new objects
+    private copyMaterialValues(source: ShaderMaterial, target: ShaderMaterial): void {
+        // Get time and celestial data - no new allocations since we've optimized CelestialService
         const timeState = this.celestialService.getTimeState();
-        const { sunDir, moonDir } = this.celestialService.getCelestialPositions();
-
+        const celestialPositions = this.celestialService.getCelestialPositions();
+        
+        // Use existing references from CelestialService - no new objects created
+        const { sunDir, moonDir } = celestialPositions;
+        
+        // Update shader uniforms directly
         target.setVector3("sunPosition", sunDir);
         target.setVector3("moonPosition", moonDir);
         target.setFloat("iTime", timeState.worldTime);
@@ -120,13 +147,20 @@ export class SkyService {
         target.setFloat("sunVisibility", timeState.sunVisibility);
         target.setFloat("moonOpacity", timeState.moonOpacity);
         target.setFloat("starVisibility", timeState.starVisibility);
+        
+        // Set to paused state
+        target.setInt("isPaused", 1);
     }
 
     private updateShaderUniforms(): void {
         if (!this.skyMaterial) return;
 
+        // Use timeState directly - no intermediary objects
         const timeState = this.celestialService.getTimeState();
-        const { sunDir, moonDir } = this.celestialService.getCelestialPositions();
+        const celestialPositions = this.celestialService.getCelestialPositions();
+        
+        // Use existing references - no new objects
+        const { sunDir, moonDir } = celestialPositions;
 
         // Update positions
         this.skyMaterial.setVector3("sunPosition", sunDir);
@@ -144,6 +178,9 @@ export class SkyService {
         this.skyMaterial.setFloat("sunVisibility", timeState.sunVisibility);
         this.skyMaterial.setFloat("moonOpacity", timeState.moonOpacity);
         this.skyMaterial.setFloat("starVisibility", timeState.starVisibility);
+        
+        // Set running state (not paused)
+        this.skyMaterial.setInt("isPaused", 0);
     }
 
     dispose(): void {
