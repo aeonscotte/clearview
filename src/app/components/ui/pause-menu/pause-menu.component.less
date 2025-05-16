@@ -1,143 +1,126 @@
 /* src/app/components/ui/pause-menu/pause-menu.component.less */
-// Custom font declaration
-@font-face {
-    font-family: 'IM Fell English SC';
-    src: url('/assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular.ttf') format('truetype');
-}
+// Import modern fonts
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Raleway:wght@300;400;600&display=swap');
 
+// Variables for consistent styling
 :root {
-    --fontSize: calc((1vw + 1vh) * .75);
+  --primary-color: #2c3e50;
+  --accent-color: #3498db;
+  --text-color: #ecf0f1;
+  --overlay-bg: rgba(0, 0, 0, 0.75);
+  --animation-speed: 0.4s;
 }
 
 .pause-menu-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(3px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    visibility: hidden;
-    opacity: 0;
-    transition: visibility 0s linear 0.3s, opacity 0.3s;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  visibility: hidden;
+  opacity: 0;
+  transition: visibility 0s linear 0.3s, opacity 0.3s;
 
-    &.visible {
-        visibility: visible;
-        opacity: 1;
-        transition: visibility 0s linear 0s, opacity 0.3s;
-    }
+  &.visible {
+    visibility: visible;
+    opacity: 1;
+    transition: visibility 0s linear 0s, opacity 0.3s;
+  }
 }
 
-main {
-    position: relative;
-    width: 100%;
-    height: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.pause-container {
+  position: relative;
+  width: 400px;
+  max-width: 80%;
+  text-align: center;
+  transform: scale(0.95);
+  transition: transform var(--animation-speed) ease;
+  
+  .visible & {
+    transform: scale(1);
+  }
 }
 
-#parchment {
+.pause-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 3rem;
+  color: var(--text-color);
+  margin-bottom: 2rem;
+  letter-spacing: 0.05em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.menu-options {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.ink-button {
+  position: relative;
+  background: none;
+  border: none;
+  font-family: 'Raleway', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+  cursor: pointer;
+  padding: 0.8rem 2rem;
+  letter-spacing: 0.05em;
+  transition: transform 0.2s, color 0.2s;
+  overflow: visible;
+  
+  // Ink stain background
+  &::before {
+    content: '';
     position: absolute;
-    display: flex;
-    width: 450px;
-    max-width: 75%;
-    height: 350px;
-    /* center page with absolute position */
-    top: 0;
+    top: 50%;
     left: 50%;
-    transform: translate(-50%, 0);
-    margin: 2em 0;
-    padding: 4em;
-    box-shadow: 2px 3px 20px black, 0 0 125px #8f5922 inset;
-    background: #fffef0;
-    /* Apply the wavy border effect with SVG filter */
-    filter: url(#wavy2);
-    /* Noise added for a vellum paper effect */
-    background-image: url(data:image/png;base64,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);
-}
-
-#contain {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 450px;
-    max-width: 75%;
-    height: 350px;
-    margin: 0 auto;
-    padding: 2em;
-    z-index: 5;
-}
-
-.title {
-    font-family: 'IM Fell English SC', serif;
-    font-weight: normal;
-    font-size: 2.4rem;
-    letter-spacing: 0.03em;
-    color: #7F3300;
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.menu-content {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 1.5rem;
-}
-
-.btn-parchment {
-    position: relative;
-    background: linear-gradient(to bottom,
-            #f8f3e2 0%,
-            #f2e8c9 50%,
-            #e2cb8c 100%);
-    border: 1px solid #d4b876;
-    color: #7F3300;
-    font-family: 'IM Fell English SC', serif;
-    font-size: 1.5rem;
-    letter-spacing: 0.04em;
-    padding: 12px 38px;
-    margin: 10px 0;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    border-radius: 3px;
-    min-width: 180px;
-    text-align: center;
-    box-shadow:
-        0 1px 3px rgba(80, 60, 30, 0.12),
-        0 2px 5px rgba(80, 60, 30, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
-
-    &:hover {
-        transform: translateY(-2px);
-        box-shadow:
-            0 4px 8px rgba(80, 60, 30, 0.12),
-            0 6px 12px rgba(80, 60, 30, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4);
-        filter: brightness(1.05);
+    width: 110%;
+    height: 110%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Cpath d='M29.38,26.5C37.4,13.88,48.69,15.56,60.83,11.93a79.6,79.6,0,0,0,30.5-17.64c3.08-2.7,5.16-6.81,9.13-7.77,8.79-2.11,12.8,1.39,18.71,8.12,4.19,4.76,12.2,1.17,17.3,3.92,6.63,3.57,19.37,2.09,16.78,13.56-1.85,8.12-1.25,16.79,5.14,22.57,11.15,10.08,16.85,22.09,11.79,37.24-4.38,13.1-17.67,16.4-29.42,19.28-11.96,2.93-23.18,11.93-36.22,10.18-13.8-1.84-28.42-17.12-36.39-13.32-8.36,4-20.19-.7-27-6.71-4.06-3.58-6.14-9.47-12.11-10.51-18.25-3.18-19-29.1-2.2-36.1C27.8,33.32,23.26,36.18,29.38,26.5Z' fill='%233498db'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0.9;
+    z-index: -1;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  
+  &:hover {
+    transform: translateY(-2px);
+    color: white;
+    
+    &::before {
+      transform: translate(-50%, -50%) scale(1.1);
+      opacity: 1;
     }
-
-    &:active {
-        transform: translateY(1px);
-        box-shadow:
-            0 1px 2px rgba(80, 60, 30, 0.1),
-            inset 0 1px 2px rgba(80, 60, 30, 0.15);
-        filter: brightness(0.98);
+  }
+  
+  &:active {
+    transform: translateY(1px);
+    
+    &::before {
+      transform: translate(-50%, -50%) scale(0.95);
     }
+  }
 }
 
-// Hide SVG
-svg {
-    position: absolute;
-    width: 0;
-    height: 0;
-    overflow: hidden;
+// Additional subtle animations
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-animation {
+  animation: float 5s ease-in-out infinite;
 }
