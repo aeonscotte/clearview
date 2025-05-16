@@ -110,15 +110,15 @@ export class Scene001 extends BaseScene {
         // Create material using our asset manager
         const terrainMaterial = this.materialService.createGroundMaterial(
             this.terrainPath,
-            3,
+            50,
             this.scene
         );
 
         // Define terrain generation options
         const terrainOptions: TerrainGenerationOptions = {
-            width: 100,
-            depth: 100,
-            resolution: 128,
+            width: 500,
+            depth: 500,
+            resolution: 512,
             minHeight: 0,
             maxHeight: 15,
             noiseOptions: {
@@ -142,20 +142,20 @@ export class Scene001 extends BaseScene {
 
         // Add mountain feature
         this.terrainGenerator.generateMountains(terrain, {
-            position: { x: 15, z: -15 },
-            radius: 25,
-            height: 20,
-            roughness: 0.7,
-            steepness: 0.6
+            position: { x: 150, z: -150 },
+            radius: 100,
+            height: 30,
+            roughness: 2,
+            steepness: 0.001,
         });
 
         // Add river
         this.terrainGenerator.generateRiver(terrain, {
-            start: { x: -40, z: -40 },
-            end: { x: 30, z: 30 },
-            width: 3,
-            depth: 2,
-            meandering: 0.5
+            start: { x: -250, z: -250 },
+            end: { x: 250, z: 250 },
+            width: 30,
+            depth: 10,
+            meandering: 10
         });
 
         // Apply some erosion
