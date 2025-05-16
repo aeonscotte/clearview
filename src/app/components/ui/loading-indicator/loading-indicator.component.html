@@ -1,0 +1,22 @@
+<div class="loading-overlay" *ngIf="isLoading">
+    <!-- SVG Filters for parchment effect -->
+    <svg>
+        <filter id="wavy2">
+            <feTurbulence x="0" y="0" baseFrequency="0.02" numOctaves="5" seed="1" />
+            <feDisplacementMap in="SourceGraphic" scale="20" />
+        </filter>
+    </svg>
+
+    <main>
+        <div id="parchment"></div>
+        <div id="contain">
+            <h1 class="title">Loading Scene</h1>
+            <div class="menu-content">
+                <div class="progress-container">
+                    <div class="progress-bar" [style.width.%]="progressPercent"></div>
+                </div>
+                <p class="loading-text">{{ progressText }}</p>
+            </div>
+        </div>
+    </main>
+</div>

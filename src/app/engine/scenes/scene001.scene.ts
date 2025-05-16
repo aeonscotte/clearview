@@ -1,7 +1,10 @@
 // src/app/engine/scenes/scene001.scene.ts
-import { BaseScene } from '../base/scene';
+import { Injectable } from '@angular/core';
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { BaseScene } from '../base/scene';
+import { EngineService } from '../core/engine.service';
 import { TimeService } from '../physics/time.service';
 import { CameraService } from '../player/camera.service';
 import { LightService } from '../world/light.service';
@@ -11,10 +14,8 @@ import { SkyService } from '../world/sky.service';
 import { AtmosphereService } from '../world/atmosphere.service';
 import { CelestialService } from '../world/celestial.service';
 import { ShaderRegistryService } from '../shaders/shader-registry.service';
+import { AssetManagerService } from '../core/asset-manager.service';
 import { MathUtils } from '../utils/math-utils.service';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { Injectable } from '@angular/core';
-import { EngineService } from '../core/engine.service';
 
 // Import shader code
 import { vertexShader as skyVertexShader } from '../shaders/enhancedSky.vertex';
@@ -22,8 +23,11 @@ import { fragmentShader as skyFragmentShader } from '../shaders/enhancedSky.frag
 
 @Injectable()
 export class Scene001 extends BaseScene {
+    // Asset paths
+    private terrainPath = '/assets/materials/terrain/rocky-rugged-terrain_1/';
+
     constructor(
-        private engineService: EngineService,
+        engineService: EngineService,
         private timeService: TimeService,
         private celestialService: CelestialService,
         private cameraService: CameraService,
@@ -33,6 +37,7 @@ export class Scene001 extends BaseScene {
         private lightService: LightService,
         private atmosphereService: AtmosphereService,
         private shaderRegistry: ShaderRegistryService,
+        private assetManager: AssetManagerService,
         private mathUtils: MathUtils
     ) {
         super(engineService);
@@ -40,28 +45,31 @@ export class Scene001 extends BaseScene {
 
     async init(canvas: HTMLCanvasElement): Promise<Scene> {
         console.log('Scene001: Initializing scene');
-        this.scene = new Scene(this.engineService.getEngine());
+        this.scene = new Scene(this.engine);
 
+        // Register shaders first (doesn't rely on assets)
         this.registerShaders();
+
+        // Set up camera and lighting (don't depend on assets)
         this.setupCamera(canvas);
         this.setupLighting();
-        this.setupTerrain();
+
+        // Preload terrain textures
+        await this.preloadAssets();
+
+        // Set up scene elements that need assets
+        await this.setupTerrain();
         this.setupSky();
 
         return this.scene;
     }
 
-    // Register all shaders needed for this scene
     private registerShaders(): void {
-        console.log('Scene001: Registering shaders');
-
-        const success = this.shaderRegistry.registerShader(
+        this.shaderRegistry.registerShader(
             'enhancedSky',
             skyVertexShader,
             skyFragmentShader
         );
-
-        console.log('Sky shader registration successful:', success);
     }
 
     private setupCamera(canvas: HTMLCanvasElement): void {
@@ -82,24 +90,41 @@ export class Scene001 extends BaseScene {
         this.scene.clearColor.set(0, 0, 0, 1);
     }
 
-    private setupTerrain(): void {
+    private async preloadAssets(): Promise<void> {
+        // Define textures to preload
+        const texturesToPreload = [
+            `${this.terrainPath}albedo.png`,
+            `${this.terrainPath}normalHeight.png`,
+            `${this.terrainPath}ao.png`,
+            `${this.terrainPath}metalRough.png`
+        ];
+
+        // Preload all textures
+        await this.assetManager.preloadTextures(texturesToPreload, this.scene);
+    }
+
+    private async setupTerrain(): Promise<void> {
+        // Create ground mesh
         const ground = this.terrainService.createGround(this.scene, {
             width: 60,
             height: 60,
             subdivisions: 4,
         });
-    
-        ground.material = this.materialService.createGroundMaterial(
-            '/assets/materials/terrain/rocky-rugged-terrain_1/',
+
+        // Create material using our asset manager
+        const material = this.materialService.createGroundMaterial(
+            this.terrainPath,
             3,
-            this.scene  // Pass the scene here
+            this.scene
         );
-    
+
+        ground.material = material;
         ground.receiveShadows = true;
-    
+
+        // Create debug sphere
         const debugSphere = MeshBuilder.CreateSphere('debugSphere', { diameter: 1 }, this.scene);
         debugSphere.position = new Vector3(0, 1, 0);
-        debugSphere.material = ground.material;
+        debugSphere.material = material;
         this.lightService.addShadowCaster(debugSphere);
     }
 
@@ -109,12 +134,8 @@ export class Scene001 extends BaseScene {
     }
 
     update(deltaTime: number): void {
-        // When paused, do nothing at all - no updates
-        if (this.timeService.isPaused()) {
-            return;
-        }
+        if (this.timeService.isPaused()) return;
 
-        // Only run updates when not paused
         this.timeService.update(deltaTime);
         this.celestialService.updateTimeState();
         this.lightService.update();
@@ -123,6 +144,10 @@ export class Scene001 extends BaseScene {
     }
 
     dispose(): void {
-        this.scene.dispose();
+        if (this.scene) {
+            // Let the AssetManager know we're disposing this scene
+            this.assetManager.handleSceneDisposal(this.scene);
+            this.scene.dispose();
+        }
     }
 }

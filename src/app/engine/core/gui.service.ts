@@ -23,8 +23,25 @@ export class GuiService {
     initialize(scene: Scene): void {
         this.activeScene = scene;
         this.engine = scene.getEngine();
+
+        // Reset pause state when initializing with a new scene
+        if (this.isPausedSubject.getValue()) {
+            this.isPausedSubject.next(false);
+        }
     }
 
+    // Clean up method for resource management
+    cleanUp(): void {
+        this.activeScene = null;
+        this.engine = null;
+
+        // Reset pause state
+        if (this.isPausedSubject.getValue()) {
+            this.isPausedSubject.next(false);
+        }
+    }
+
+    // Existing methods...
     togglePause(): void {
         const newState = !this.isPausedSubject.getValue();
         this.setPaused(newState);
@@ -39,50 +56,39 @@ export class GuiService {
         }
 
         if (isPaused) {
-            // First pause the time service
+            // Pause time and animations
             this.timeService.pause();
-
-            // Store current animation state before pausing
             this.previousAnimationPausedState = this.activeScene.animationsEnabled;
-
-            // Pause scene animations and physics
             this.activeScene.animationsEnabled = false;
 
             if (this.activeScene.physicsEnabled) {
                 this.activeScene.physicsEnabled = false;
             }
 
-            // Stop render loop but keep the menu visible
+            // Minimal render loop for UI
             this.engine.stopRenderLoop();
-
-            // Set up a minimal render loop just to keep UI visible
             this.engine.runRenderLoop(() => {
-                // Only render, don't update anything
-                this.activeScene?.render();
+                if (this.activeScene) this.activeScene.render();
             });
         } else {
-            // First stop the minimal render loop
+            // Resume regular function
             this.engine.stopRenderLoop();
-
-            // Resume time service
             this.timeService.resume();
 
-            // Restore previous animation state
-            this.activeScene.animationsEnabled = this.previousAnimationPausedState;
-
-            if (this.activeScene.physicsEnabled === false) {
-                this.activeScene.physicsEnabled = true;
+            if (this.activeScene) {
+                this.activeScene.animationsEnabled = this.previousAnimationPausedState;
+                if (this.activeScene.physicsEnabled === false) {
+                    this.activeScene.physicsEnabled = true;
+                }
             }
 
-            // Force a complete state update before restarting the render loop
-            this.timeService.update(16); // Simulate a ~60fps frame
+            // Force state update and restore render loop
+            this.timeService.update(16);
             this.sceneManager.forceUpdate();
-
-            // Restart the render loop with full updates
             this.sceneManager.restoreRenderLoop();
         }
 
-        // Update the pause state
+        // Update pause state
         this.isPausedSubject.next(isPaused);
     }
 

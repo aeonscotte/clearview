@@ -3,48 +3,77 @@ import { Injectable, Injector, Type } from '@angular/core';
 import { Scene } from '@babylonjs/core/scene';
 import { BaseScene } from '../base/scene';
 import { EngineService } from './engine.service';
+import { Observable } from 'rxjs';
+import { AssetManagerService } from '../core/asset-manager.service';
 
 @Injectable({ providedIn: 'root' })
 export class SceneManagerService {
-    private currentSceneInstance?: BaseScene;
+    private currentSceneInstance: BaseScene | null = null;
+    private renderLoopActive = false;
 
     constructor(
         private engineService: EngineService,
+        private assetManager: AssetManagerService,
         private injector: Injector
     ) { }
 
     async loadScene(sceneType: Type<BaseScene>, canvas: HTMLCanvasElement): Promise<void> {
-        if (this.currentSceneInstance) {
-            this.currentSceneInstance.dispose();
-        }
+        // Clean up any existing scene first
+        this.cleanUp();
+
+        // Create a fresh engine with the new canvas
+        const engine = this.engineService.createEngine(canvas);
 
         // Get scene instance from Angular DI system
         this.currentSceneInstance = this.injector.get(sceneType);
 
-        await this.currentSceneInstance!.init(canvas);
+        try {
+            // Initialize the scene
+            await this.currentSceneInstance.init(canvas);
 
-        // Initialize the render loop
-        this.setupRenderLoop();
+            // Start the render loop
+            this.setupRenderLoop();
+        } catch (error) {
+            console.error('Error initializing scene:', error);
+            this.cleanUp();
+            throw error;
+        }
     }
 
-    // Add this method to setup the render loop
     private setupRenderLoop(): void {
+        if (this.renderLoopActive) {
+            this.stopRenderLoop();
+        }
+
         const engine = this.engineService.getEngine();
+        this.renderLoopActive = true;
+
         engine.runRenderLoop(() => {
-            const delta = engine.getDeltaTime();
-            this.currentSceneInstance?.update(delta);
-            this.currentSceneInstance?.getScene().render();
+            if (this.currentSceneInstance) {
+                const delta = engine.getDeltaTime();
+                this.currentSceneInstance.update(delta);
+                const scene = this.currentSceneInstance.getScene();
+                if (scene) {
+                    scene.render();
+                }
+            }
         });
     }
 
-    // Add this method to force a scene update regardless of pause state
+    stopRenderLoop(): void {
+        if (this.renderLoopActive) {
+            const engine = this.engineService.getEngine();
+            engine.stopRenderLoop();
+            this.renderLoopActive = false;
+        }
+    }
+
+    // Force a scene update regardless of pause state
     forceUpdate(): void {
         if (!this.currentSceneInstance) return;
 
         const engine = this.engineService.getEngine();
         const delta = engine.getDeltaTime();
-
-        // Force a single update to synchronize all systems
         this.currentSceneInstance.update(delta);
     }
 
@@ -53,8 +82,28 @@ export class SceneManagerService {
         this.setupRenderLoop();
     }
 
-    // Get the current scene
+    // Clean up all resources
+    cleanUp(): void {
+        // Stop the render loop
+        this.stopRenderLoop();
+
+        // Dispose current scene
+        if (this.currentSceneInstance) {
+            this.currentSceneInstance.dispose();
+            this.currentSceneInstance = null;
+        }
+    }
+
     getCurrentScene(): Scene | undefined {
         return this.currentSceneInstance?.getScene();
+    }
+
+    hasActiveScene(): boolean {
+        return !!this.currentSceneInstance;
+    }
+
+    // Get asset loading progress
+    getAssetLoadingProgress(): Observable<number> {
+        return this.assetManager.getLoadingProgress();
     }
 }
