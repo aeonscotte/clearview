@@ -105,16 +105,28 @@ export class Scene001 extends BaseScene {
 
     private async setupTerrain(): Promise<void> {
         // Create ground mesh
-        const ground = this.terrainService.createGround(this.scene, {
-            width: 60,
-            height: 60,
-            subdivisions: 4,
-        });
+        // const ground = this.terrainService.createGround(this.scene, {
+        //     width: 60,
+        //     height: 60,
+        //     subdivisions: 4,
+        // });
+
+        // create terrain from heightmap in assets/terrain/heightmap.png
+        const ground = this.terrainService.createHeightMap(this.scene, {
+            name: 'Terrain001',
+            url: '/assets/terrain/heightmap.png',
+            width: 4096,
+            height: 4096,
+            subdivisions: 512,
+            minHeight: 0,
+            maxHeight: 128});
+        
+        ground.position = new Vector3(0, -50, 0);
 
         // Create material using our asset manager
         const material = this.materialService.createGroundMaterial(
             this.terrainPath,
-            3,
+            256,
             this.scene
         );
 

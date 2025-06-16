@@ -62,11 +62,11 @@ export class TerrainService {
         const {
             name = 'heightmap',
             url,
-            width = 100,
-            height = 100,
-            subdivisions = 100,
+            width = 1000,
+            height = 1000,
+            subdivisions = 10000,
             minHeight = 0,
-            maxHeight = 10,
+            maxHeight = 100,
             colorTextureUrl
         } = options;
 
