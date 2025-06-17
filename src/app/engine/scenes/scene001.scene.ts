@@ -119,9 +119,9 @@ export class Scene001 extends BaseScene {
             height: 4096,
             subdivisions: 512,
             minHeight: 0,
-            maxHeight: 128});
+            maxHeight: 64});
         
-        ground.position = new Vector3(0, -50, 0);
+        ground.position = new Vector3(0, -20, 0);
 
         // Create material using our asset manager
         const material = this.materialService.createGroundMaterial(
