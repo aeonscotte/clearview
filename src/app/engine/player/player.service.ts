@@ -108,7 +108,7 @@ export class PlayerService {
         const velocity = impostor.getLinearVelocity() || Vector3.Zero();
         const moveImpulse = new Vector3(0, 0, 0);
         const speed = 10;
-        const jumpStrength = 2;
+        const jumpStrength = 4;
         const yaw = (this.camera as any).rotationOffset || 0;
         const rad = (yaw * Math.PI) / 180;
         // Babylon.js Z-forward convention: invert X and Z for forward
