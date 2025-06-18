@@ -58,7 +58,7 @@ export class TerrainService {
         size: 2
     };
 
-    createHeightMap(scene: Scene, options: HeightMapOptions): Mesh {
+    createHeightMap(scene: Scene, options: HeightMapOptions, onReady?: (ground: Mesh) => void): Mesh {
         const {
             name = 'heightmap',
             url,
@@ -77,10 +77,16 @@ export class TerrainService {
         this._heightMapCreateOptions.minHeight = minHeight;
         this._heightMapCreateOptions.maxHeight = maxHeight;
 
+        // Add onReady to options if provided
+        const createOptions = { ...this._heightMapCreateOptions };
+        if (onReady) {
+            (createOptions as any).onReady = onReady;
+        }
+
         const ground = MeshBuilder.CreateGroundFromHeightMap(
             name, 
             url, 
-            this._heightMapCreateOptions, 
+            createOptions, 
             scene
         );
 
