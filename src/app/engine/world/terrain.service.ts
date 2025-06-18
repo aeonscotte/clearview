@@ -172,46 +172,4 @@ export class TerrainService {
         return result;
     }
     
-    // Additional methods for terrain generation
-    
-    // Create a multi-material terrain with regions (like grass, rock, sand)
-    createTerrainGrid(scene: Scene, size: number, subdivisionsPerSide: number = 8): Mesh {
-        const totalWidth = size;
-        const totalHeight = size;
-        const subdivisions = subdivisionsPerSide;
-        
-        // Create base ground
-        const options: GroundOptions = {
-            name: 'terrainGrid',
-            width: totalWidth,
-            height: totalHeight,
-            subdivisions: subdivisions
-        };
-        
-        return this.createGround(scene, options);
-    }
-    
-    // Create a simple hill terrain using a procedural height map
-    createSimpleHillTerrain(scene: Scene, options: GroundOptions = {}): Mesh {
-        const ground = this.createGround(scene, options);
-        
-        // We would typically modify vertices here to create hills
-        // This is a placeholder for a more sophisticated implementation
-        
-        return ground;
-    }
-    
-    // Flatten a specific area of terrain - useful for building placement
-    flattenTerrainArea(terrain: Mesh, center: Vector3, radius: number): void {
-        // Implementation would modify the terrain vertices
-        // This is a placeholder for actual terrain modification
-        console.log(`Flattening terrain at ${center.x}, ${center.z} with radius ${radius}`);
-    }
-    
-    // Method to apply texture splatting to a terrain
-    applyTerrainTextures(terrain: Mesh, scene: Scene, texturePaths: string[]): void {
-        // Implementation would apply multi-texturing to the terrain
-        // This is a placeholder for actual texture splatting implementation
-        console.log(`Applying ${texturePaths.length} textures to terrain`);
-    }
 }
