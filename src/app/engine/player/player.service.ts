@@ -21,8 +21,8 @@ export class PlayerService {
 
     private createPlayer(scene: Scene): void {
         // Use a single invisible sphere impostor for physics, and parent visual capsule parts
-        const radius = 1;
-        const height = 4;
+        const radius = 0.5;
+        const height = 1.8; // Total height of the capsule
         const sphereOffset = (height / 2) - radius;
 
         // Root mesh (physics body)
@@ -56,7 +56,7 @@ export class PlayerService {
         this.camera.heightOffset = 3;
         this.camera.rotationOffset = 180;
         this.camera.cameraAcceleration = 0.05;
-        this.camera.maxCameraSpeed = 20;
+        this.camera.maxCameraSpeed = 10;
         (this.camera as any)._pitch = 0; // custom property for pitch
         scene.activeCamera = this.camera;
 
@@ -107,8 +107,8 @@ export class PlayerService {
         const impostor = this.playerMesh.physicsImpostor;
         const velocity = impostor.getLinearVelocity() || Vector3.Zero();
         const moveImpulse = new Vector3(0, 0, 0);
-        const speed = 6;
-        const jumpStrength = 10;
+        const speed = 10;
+        const jumpStrength = 2;
         const yaw = (this.camera as any).rotationOffset || 0;
         const rad = (yaw * Math.PI) / 180;
         // Babylon.js Z-forward convention: invert X and Z for forward

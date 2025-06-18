@@ -15,7 +15,7 @@ export class AtmosphereService {
     private targetFogColor: Color3 = new Color3(0.04, 0.04, 0.08);
     private currentFogDensity: number = 0.001;
     private targetFogDensity: number = 0.001;
-    private fogTransitionSpeed: number = 0.05;
+    private fogTransitionSpeed: number = 0.1;
     
     // Pre-allocated Color3 objects for day period tints
     private _tempDaytimeTint: Color3 = new Color3(0.85, 0.85, 0.9);
