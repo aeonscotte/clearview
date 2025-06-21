@@ -144,7 +144,7 @@ export class Scene001 extends BaseScene {
                 minHeight: 0,
                 maxHeight: 64
             }, (ground) => {
-                ground.position = new Vector3(0, -20, 0);
+                ground.position = new Vector3(0, -10, 0);
 
                 const material = this.materialService.createGroundMaterial(
                     this.terrainPath,
