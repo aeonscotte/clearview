@@ -32,7 +32,7 @@ export class PlayerService {
         this.playerMesh.physicsImpostor = new PhysicsImpostor(
             this.playerMesh,
             PhysicsImpostor.SphereImpostor,
-            { mass: 3, friction: 0.2, restitution: 0 },
+            { mass: 3, friction: 0.3, restitution: 0 },
             scene
         );
 
