@@ -107,7 +107,7 @@ export class PlayerService {
         const impostor = this.playerMesh.physicsImpostor;
         const velocity = impostor.getLinearVelocity() || Vector3.Zero();
         const moveImpulse = new Vector3(0, 0, 0);
-        const speed = 10;
+        const speed = 1.5;
         const jumpStrength = 4;
         const yaw = (this.camera as any).rotationOffset || 0;
         const rad = (yaw * Math.PI) / 180;

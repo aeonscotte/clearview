@@ -121,9 +121,11 @@ export class Scene001 extends BaseScene {
         return new Promise<void>((resolve) => {
             // Add a flat ground for debugging
             const flatGround = MeshBuilder.CreateGround('flatGround', { width: 4096, height: 4096 }, this.scene);
-            flatGround.position = new Vector3(0, -20, 0);
+            flatGround.position = new Vector3(0, -19.99, 0);
             flatGround.material = new StandardMaterial('flatGroundMat', this.scene);
             flatGround.material.alpha = 0.3; // Make it semi-transparent
+            flatGround.material.alpha = 0.3; // Make it semi-transparent
+            (flatGround.material as StandardMaterial).diffuseColor.set(0.1, 0.3, 0.7); // Water-like blue
             this.physicsService.addImpostor(flatGround, PhysicsImpostor.BoxImpostor, { mass: 0, friction: 0.8 });
             console.log('Flat ground impostor:', flatGround.physicsImpostor?.type);
 
@@ -137,18 +139,18 @@ export class Scene001 extends BaseScene {
             // Heightmap terrain as before
             const ground = this.terrainService.createHeightMap(this.scene, {
                 name: 'Terrain001',
-                url: '/assets/terrain/heightmap.png',
-                width: 4096,
-                height: 4096,
-                subdivisions: 512,
+                url: '/assets/terrain/heightmap_gaea.png',
+                width: 1024,
+                height: 1024,
+                subdivisions: 1024,
                 minHeight: 0,
-                maxHeight: 64
+                maxHeight: 32
             }, (ground) => {
-                ground.position = new Vector3(0, -10, 0);
+                ground.position = new Vector3(0, -20, 0);
 
                 const material = this.materialService.createGroundMaterial(
                     this.terrainPath,
-                    2048, // original material scale
+                    1024, // original material scale
                     this.scene
                 );
                 ground.material = material;
@@ -157,10 +159,10 @@ export class Scene001 extends BaseScene {
                 this.physicsService.addHeightmapImpostor(ground as GroundMesh, { mass: 0, friction: 0.8 });
                 console.log('Heightmap impostor:', (ground as any).physicsImpostor?.type);
 
-                const debugSphere = MeshBuilder.CreateSphere('debugSphere', { diameter: 2 }, this.scene);
-                debugSphere.position = new Vector3(0, 2, 0);
-                debugSphere.material = material;
-                this.lightService.addShadowCaster(debugSphere);
+                // const debugSphere = MeshBuilder.CreateSphere('debugSphere', { diameter: 2 }, this.scene);
+                // debugSphere.position = new Vector3(0, 2, 0);
+                // debugSphere.material = material;
+                // this.lightService.addShadowCaster(debugSphere);
 
                 resolve();
             });
