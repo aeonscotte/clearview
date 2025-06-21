@@ -148,7 +148,7 @@ export class Scene001 extends BaseScene {
 
                 const material = this.materialService.createGroundMaterial(
                     this.terrainPath,
-                    256, // original material scale
+                    2048, // original material scale
                     this.scene
                 );
                 ground.material = material;
