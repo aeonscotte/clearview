@@ -20,12 +20,10 @@ export class PlayerService {
     }
 
     private createPlayer(scene: Scene): void {
-        // Use a single invisible sphere impostor for physics, and parent visual capsule parts
         const radius = 0.5;
-        const height = 1.8; // Total height of the capsule
+        const height = 1.8;
         const sphereOffset = (height / 2) - radius;
 
-        // Root mesh (physics body)
         this.playerMesh = MeshBuilder.CreateSphere('player_root', { diameter: radius * 2 }, scene);
         this.playerMesh.isVisible = false;
         this.playerMesh.position = new Vector3(0, 20, 0);
@@ -36,7 +34,6 @@ export class PlayerService {
             scene
         );
 
-        // Visual capsule parts
         const sphereBottom = MeshBuilder.CreateSphere('player_sphere_bottom', { diameter: radius * 2 }, scene);
         sphereBottom.position = new Vector3(0, -sphereOffset, 0);
         sphereBottom.parent = this.playerMesh;
@@ -49,23 +46,19 @@ export class PlayerService {
     }
 
     private createCamera(scene: Scene): void {
-        // Use FollowCamera for third-person, with pointer lock and mouse look (yaw + pitch)
         this.camera = new FollowCamera('ThirdPersonCamera', this.playerMesh.position, scene);
         this.camera.lockedTarget = this.playerMesh;
-        this.camera.radius = 10; // farther default
+        this.camera.radius = 10;
         this.camera.heightOffset = 3;
         this.camera.rotationOffset = 180;
         this.camera.cameraAcceleration = 0.05;
         this.camera.maxCameraSpeed = 10;
-        (this.camera as any)._pitch = 0; // custom property for pitch
+        (this.camera as any)._pitch = 0;
         scene.activeCamera = this.camera;
 
-        // Pointer lock for mouse look
         const canvas = scene.getEngine().getRenderingCanvas();
         if (canvas) {
-            canvas.addEventListener('click', () => {
-                canvas.requestPointerLock();
-            });
+            canvas.addEventListener('click', () => canvas.requestPointerLock());
             let yaw = 180;
             let pitch = 0;
             document.addEventListener('pointerlockchange', () => {
@@ -76,17 +69,15 @@ export class PlayerService {
                 }
             });
             const onMouseMove = (e: MouseEvent) => {
-                yaw += e.movementX * 0.2; // reverse sign for natural feel
-                pitch += e.movementY * 0.2; // reverse sign for natural feel
-                pitch = Math.max(-40, Math.min(60, pitch)); // clamp pitch, less negative to avoid ground
+                yaw += e.movementX * 0.2;
+                pitch += e.movementY * 0.2;
+                pitch = Math.max(-40, Math.min(60, pitch));
                 this.camera.rotationOffset = yaw;
                 (this.camera as any)._pitch = pitch;
             };
-            // Update camera target height and radius each frame for pitch
             scene.onBeforeRenderObservable.add(() => {
                 const cam = this.camera as any;
                 const rad = (cam._pitch || 0) * Math.PI / 180;
-                // Clamp heightOffset and radius to avoid going under ground or too close
                 this.camera.heightOffset = Math.max(1, 3 + Math.sin(rad) * 6);
                 this.camera.radius = Math.max(6, 10 - Math.sin(rad) * 2);
             });
@@ -107,23 +98,25 @@ export class PlayerService {
         const impostor = this.playerMesh.physicsImpostor;
         const velocity = impostor.getLinearVelocity() || Vector3.Zero();
         const moveImpulse = new Vector3(0, 0, 0);
-        const speed = 1.5;
+        const baseSpeed = 1.5;
+        const sprintMultiplier = 2.0;
         const jumpStrength = 4;
         const yaw = (this.camera as any).rotationOffset || 0;
         const rad = (yaw * Math.PI) / 180;
-        // Babylon.js Z-forward convention: invert X and Z for forward
+
         const forward = new Vector3(-Math.sin(rad), 0, -Math.cos(rad));
         const right = new Vector3(-Math.sin(rad + Math.PI / 2), 0, -Math.cos(rad + Math.PI / 2));
         const isGrounded = Math.abs(velocity.y) < 0.05;
 
-        // Movement
         if (this.inputMap['w']) moveImpulse.addInPlace(forward);
         if (this.inputMap['s']) moveImpulse.subtractInPlace(forward);
         if (this.inputMap['a']) moveImpulse.subtractInPlace(right);
         if (this.inputMap['d']) moveImpulse.addInPlace(right);
 
         if (moveImpulse.length() > 0) {
-            moveImpulse.normalize().scaleInPlace(speed);
+            moveImpulse.normalize();
+            const speed = baseSpeed * (this.inputMap['shift'] ? sprintMultiplier : 1);
+            moveImpulse.scaleInPlace(speed);
             impostor.setLinearVelocity(new Vector3(
                 moveImpulse.x,
                 velocity.y,
@@ -137,14 +130,13 @@ export class PlayerService {
             ));
         }
 
-        // Jump
         if (this.inputMap[' '] && isGrounded) {
             impostor.setLinearVelocity(new Vector3(velocity.x, jumpStrength, velocity.z));
         }
 
-        // Keep upright
         this.playerMesh.rotationQuaternion = null;
         this.playerMesh.rotation.set(0, this.playerMesh.rotation.y, 0);
         impostor.setAngularVelocity(Vector3.Zero());
     }
 }
+

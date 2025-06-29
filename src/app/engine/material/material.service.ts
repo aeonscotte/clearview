@@ -4,6 +4,8 @@ import { Scene } from '@babylonjs/core/scene';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { AssetManagerService } from '../../engine/core/asset-manager.service';
+import { ShaderMaterial } from '@babylonjs/core';
+import { simpleWaterVertex, simpleWaterFragment } from '../../engine/shaders/simpleWater.shader';
 
 @Injectable({ providedIn: 'root' })
 export class MaterialService {
@@ -62,5 +64,37 @@ export class MaterialService {
             fallback.albedoColor = new Color3(1, 0, 1); // Magenta for visibility
             return fallback;
         }
+    }
+
+    createWaterMaterial(scene: Scene): ShaderMaterial {
+        const shaderName = 'simpleWaterShader';
+
+        const material = new ShaderMaterial(
+            shaderName,
+            scene,
+            {
+                vertexSource: simpleWaterVertex,
+                fragmentSource: simpleWaterFragment,
+            },
+            {
+                attributes: ['position', 'uv'],
+                uniforms: ['worldViewProjection', 'time', 'waterColor', 'highlightColor', 'opacity'],
+                needAlphaBlending: true,
+            }
+        );
+
+        // Set default values
+        material.setFloat('time', 0);
+        material.setColor3('waterColor', Color3.FromHexString('#206090'));
+        material.setColor3('highlightColor', Color3.FromHexString('#60c0ff'));
+        material.setFloat('opacity', 0.8);
+
+        // Animate time
+        scene.onBeforeRenderObservable.add(() => {
+            const time = performance.now() * 0.001;
+            material.setFloat('time', time);
+        });
+
+        return material;
     }
 }
