@@ -216,7 +216,7 @@ void main(void) {
     skyColor += starField;
     
     // Dramatically smaller sun - tiny point of light
-    float sunSize = 0.00008; // Extremely reduced size for distant star appearance
+    float sunSize = 0.000008; // Extremely reduced size for distant star appearance
     float sunDisc = smootherstep(0.9999 - sunSize, 0.9999, sunDot);
     
     // Sun glow varies with height and atmosphere
@@ -270,7 +270,7 @@ void main(void) {
     }
     
     // Dramatically smaller moon - tiny point of light
-    float moonSize = 0.00006; // Extremely reduced size for distant appearance
+    float moonSize = 0.000006; // Extremely reduced size for distant appearance
     float moonDisc = smootherstep(0.9999 - moonSize, 0.9999, moonDot);
     
     // Moon glow depends on moon phase (simplified)
