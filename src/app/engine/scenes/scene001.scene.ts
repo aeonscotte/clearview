@@ -120,20 +120,20 @@ export class Scene001 extends BaseScene {
     private async setupTerrain(): Promise<void> {
         return new Promise<void>((resolve) => {
             // Add a flat ground for debugging
-            // const flatGround = MeshBuilder.CreateGround('flatGround', { width: 4096, height: 4096 }, this.scene);
-            // flatGround.position = new Vector3(0, -19.99, 0);
-            // flatGround.material = new StandardMaterial('flatGroundMat', this.scene);
-            // flatGround.material.alpha = 0.3; // Make it semi-transparent
-            // flatGround.material.alpha = 0.3; // Make it semi-transparent
-            // (flatGround.material as StandardMaterial).diffuseColor.set(0.1, 0.3, 0.7); // Water-like blue
-            // this.physicsService.addImpostor(flatGround, PhysicsImpostor.BoxImpostor, { mass: 0, friction: 0.8 });
-            // console.log('Flat ground impostor:', flatGround.physicsImpostor?.type);
+            const flatGround = MeshBuilder.CreateGround('flatGround', { width: 4096, height: 4096 }, this.scene);
+            flatGround.position = new Vector3(0, -19.99, 0);
+            flatGround.material = new StandardMaterial('flatGroundMat', this.scene);
+            flatGround.material.alpha = 0.3; // Make it semi-transparent
+            flatGround.material.alpha = 0.3; // Make it semi-transparent
+            (flatGround.material as StandardMaterial).diffuseColor.set(0.1, 0.3, 0.7); // Water-like blue
+            this.physicsService.addImpostor(flatGround, PhysicsImpostor.BoxImpostor, { mass: 0, friction: 0.8 });
+            console.log('Flat ground impostor:', flatGround.physicsImpostor?.type);
 
             // Add a PLane that uses the water shader
-            const waterPlane = MeshBuilder.CreateGround('waterPlane', { width: 4096, height: 4096 }, this.scene);
-            waterPlane.position = new Vector3(0, -19.99, 0);
-            const waterMaterial = this.materialService.createWaterMaterial(this.scene);
-            waterPlane.material = waterMaterial;
+            // const waterPlane = MeshBuilder.CreateGround('waterPlane', { width: 4096, height: 4096 }, this.scene);
+            // waterPlane.position = new Vector3(0, -19.99, 0);
+            // const waterMaterial = this.materialService.createWaterMaterial(this.scene);
+            // waterPlane.material = waterMaterial;
 
             // Add a test box above the ground
             const testBox = MeshBuilder.CreateBox('testBox', { size: 4 }, this.scene);
