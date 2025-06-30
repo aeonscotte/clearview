@@ -1,2 +1,3 @@
 <!-- src/app/pages/demo/clearview/clearview.component.html -->
-<clearview-viewport></clearview-viewport>
+<app-main-menu *ngIf="showMenu" (start)="startScene()" (scene)="selectScene($event)"></app-main-menu>
+<clearview-viewport *ngIf="!showMenu" [sceneType]="sceneType" (exit)="returnToMenu()"></clearview-viewport>

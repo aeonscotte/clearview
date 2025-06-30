@@ -1,0 +1,21 @@
+<div class="settings-overlay">
+    <main>
+        <div id="parchment"></div>
+        <div id="contain">
+            <h2 class="title">Settings</h2>
+            <div class="menu-content">
+                <label class="volume-control">
+                    Volume
+                    <input type="range" min="0" max="1" step="0.01" [(ngModel)]="volume" (input)="onVolumeChange()" />
+                </label>
+                <button class="btn-parchment" (click)="closeDialog()">Close</button>
+            </div>
+        </div>
+    </main>
+    <svg>
+        <filter id="wavy2">
+            <feTurbulence x="0" y="0" baseFrequency="0.02" numOctaves="5" seed="1" />
+            <feDisplacementMap in="SourceGraphic" scale="20" />
+        </filter>
+    </svg>
+</div>

@@ -1,0 +1,21 @@
+<div class="main-menu-overlay">
+    <main>
+        <div id="parchment"></div>
+        <div id="contain">
+            <h1 class="title">Clearview Demo</h1>
+            <div class="menu-content">
+                <button class="btn-parchment" (click)="start.emit()">Continue</button>
+                <button class="btn-parchment" (click)="openSceneSelector()">Scene Select</button>
+                <button class="btn-parchment" (click)="openSettings()">Settings</button>
+            </div>
+            <app-scene-selector *ngIf="showSceneSelector" (scene)="sceneSelected($event)" (close)="showSceneSelector=false"></app-scene-selector>
+            <app-settings-menu *ngIf="showSettings" (close)="closeSettings()"></app-settings-menu>
+        </div>
+    </main>
+    <svg>
+        <filter id="wavy2">
+            <feTurbulence x="0" y="0" baseFrequency="0.02" numOctaves="5" seed="1" />
+            <feDisplacementMap in="SourceGraphic" scale="20" />
+        </filter>
+    </svg>
+</div>

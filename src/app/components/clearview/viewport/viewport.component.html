@@ -2,5 +2,5 @@
 <div class="viewport-container">
     <canvas #renderCanvas class="render-canvas"></canvas>
     <app-loading-indicator></app-loading-indicator>
-    <app-pause-menu></app-pause-menu>
+    <app-pause-menu (exit)="onExit()"></app-pause-menu>
 </div>

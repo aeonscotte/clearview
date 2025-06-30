@@ -1,5 +1,5 @@
 // src/app/components/ui/pause-menu/pause-menu.component.ts
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GuiService } from '../../../engine/core/gui.service';
 import { Subscription } from 'rxjs';
@@ -14,6 +14,7 @@ import { Subscription } from 'rxjs';
 export class PauseMenuComponent implements OnInit, OnDestroy {
     isVisible = false;
     private subscription: Subscription | null = null;
+    @Output() exit = new EventEmitter<void>();
 
     constructor(private guiService: GuiService) { }
 
@@ -32,5 +33,10 @@ export class PauseMenuComponent implements OnInit, OnDestroy {
     resumeGame(): void {
         // Use the same method that the ESC key uses
         this.guiService.setPaused(false);
+    }
+
+    backToMainMenu(): void {
+        this.guiService.setPaused(false);
+        this.exit.emit();
     }
 }

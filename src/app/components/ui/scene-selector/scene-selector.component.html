@@ -1,0 +1,20 @@
+<div class="selector-overlay">
+    <main>
+        <div id="parchment"></div>
+        <div id="contain">
+            <h2 class="title">Select Scene</h2>
+            <div class="menu-content">
+                <button class="btn-parchment" *ngFor="let s of scenes" (click)="selectScene(s)">
+                    {{ s.name }}
+                </button>
+                <button class="btn-parchment" (click)="closeDialog()">Back</button>
+            </div>
+        </div>
+    </main>
+    <svg>
+        <filter id="wavy2">
+            <feTurbulence x="0" y="0" baseFrequency="0.02" numOctaves="5" seed="1" />
+            <feDisplacementMap in="SourceGraphic" scale="20" />
+        </filter>
+    </svg>
+</div>

@@ -1,9 +1,10 @@
 // src/app/components/clearview/viewport/viewport.component.ts
-import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, NgZone } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, NgZone, Input, Output, EventEmitter, Type } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EngineService } from '../../../engine/core/engine.service';
 import { SceneManagerService } from '../../../engine/core/scene-manager.service';
 import { Scene001 } from '../../../engine/scenes/scene001.scene';
+import { BaseScene } from '../../../engine/base/scene';
 import { GuiService } from '../../../engine/core/gui.service';
 import { AssetManagerService } from '../../../engine/core/asset-manager.service';
 import { PauseMenuComponent } from '../../ui/pause-menu/pause-menu.component';
@@ -18,6 +19,8 @@ import { LoadingIndicatorComponent } from '../../ui/loading-indicator/loading-in
 })
 export class ViewportComponent implements AfterViewInit, OnDestroy {
     @ViewChild('renderCanvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
+    @Input() sceneType: Type<BaseScene> = Scene001;
+    @Output() exit = new EventEmitter<void>();
     private resizeListener: (() => void) | null = null;
 
     constructor(
@@ -52,7 +55,7 @@ export class ViewportComponent implements AfterViewInit, OnDestroy {
             const canvas = this.canvasRef.nativeElement;
 
             // Load scene (creates fresh engine)
-            await this.sceneManager.loadScene(Scene001, canvas);
+            await this.sceneManager.loadScene(this.sceneType, canvas);
 
             // Initialize GUI
             const scene = this.sceneManager.getCurrentScene();
@@ -87,5 +90,12 @@ export class ViewportComponent implements AfterViewInit, OnDestroy {
                 this.guiService.togglePause();
             });
         }
+    }
+
+    onExit(): void {
+        this.sceneManager.cleanUp();
+        this.engineService.cleanUp();
+        this.guiService.cleanUp();
+        this.exit.emit();
     }
 }
