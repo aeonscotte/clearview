@@ -92,6 +92,11 @@ export class SceneManagerService {
             this.currentSceneInstance.dispose();
             this.currentSceneInstance = null;
         }
+
+        // Ensure the engine itself is fully cleaned up
+        if (this.engineService.hasValidEngine()) {
+            this.engineService.cleanUp();
+        }
     }
 
     getCurrentScene(): Scene | undefined {
