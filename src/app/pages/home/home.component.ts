@@ -7,7 +7,7 @@ import { RouterModule } from '@angular/router';
     selector: 'app-home',
     imports: [CommonModule, RouterModule],
     templateUrl: './home.component.html',
-    styleUrl: './home.component.less'
+    styleUrls: ['./home.component.less']
 })
 export class HomeComponent {
 

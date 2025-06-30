@@ -6,7 +6,7 @@ import { ViewportComponent } from '../../../components/clearview/viewport/viewpo
     selector: 'app-clearview',
     imports: [ViewportComponent],
     templateUrl: './clearview.component.html',
-    styleUrl: './clearview.component.less'
+    styleUrls: ['./clearview.component.less']
 })
 export class ClearviewComponent {
 

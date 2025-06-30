@@ -72,7 +72,7 @@ export class Scene001 extends BaseScene {
 
         this.setupSky();
 
-        // Intialize player (after terrain is ready)
+        // Initialize player (after terrain is ready)
         this.playerService.init(this.scene); 
 
         return this.scene;

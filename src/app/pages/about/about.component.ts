@@ -6,7 +6,7 @@ import { RouterModule } from '@angular/router';
     selector: 'app-about',
     imports: [CommonModule, RouterModule],
     templateUrl: './about.component.html',
-    styleUrl: './about.component.less'
+    styleUrls: ['./about.component.less']
 })
 export class AboutComponent {
 
