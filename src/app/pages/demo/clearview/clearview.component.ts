@@ -4,10 +4,11 @@ import { ViewportComponent } from '../../../components/clearview/viewport/viewpo
 import { MainMenuComponent } from '../../../components/ui/main-menu/main-menu.component';
 import { SettingsDialogComponent } from '../../../components/ui/settings-dialog/settings-dialog.component';
 import { UiStateService } from '../../../services/ui-state.service';
+import { CommonModule } from '@angular/common';
 
 @Component({
     selector: 'app-clearview',
-    imports: [ViewportComponent, MainMenuComponent, SettingsDialogComponent],
+    imports: [CommonModule, ViewportComponent, MainMenuComponent, SettingsDialogComponent],
     templateUrl: './clearview.component.html',
     styleUrls: ['./clearview.component.less']
 })
