@@ -6,14 +6,31 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { FollowCamera } from '@babylonjs/core/Cameras/followCamera';
 import { KeyboardEventTypes, KeyboardInfo } from '@babylonjs/core/Events/keyboardEvents';
 import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor';
+import { Observer } from '@babylonjs/core/Misc/observable';
+
+export interface PlayerState {
+    position: [number, number, number];
+    velocity: [number, number, number];
+}
 
 @Injectable({ providedIn: 'root' })
 export class PlayerService {
     private playerMesh!: Mesh;
     private camera!: FollowCamera;
     private inputMap: { [key: string]: boolean } = {};
+    private canvas: HTMLCanvasElement | null = null;
+    private clickHandler?: () => void;
+    private pointerLockHandler?: () => void;
+    private mouseMoveHandler?: (e: MouseEvent) => void;
+    private beforeRenderObserver?: Observer<Scene>;
+    private cameraObserver?: Observer<Scene>;
+    private keyboardObserver?: Observer<KeyboardInfo>;
+
+    private scene?: Scene;
+
 
     init(scene: Scene): void {
+        this.scene = scene;
         this.createPlayer(scene);
         this.createCamera(scene);
         this.registerControls(scene);
@@ -56,26 +73,32 @@ export class PlayerService {
         (this.camera as any)._pitch = 0;
         scene.activeCamera = this.camera;
 
-        const canvas = scene.getEngine().getRenderingCanvas();
+        this.canvas = scene.getEngine().getRenderingCanvas();
+        const canvas = this.canvas;
         if (canvas) {
-            canvas.addEventListener('click', () => canvas.requestPointerLock());
+            this.clickHandler = () => canvas.requestPointerLock();
+            canvas.addEventListener('click', this.clickHandler);
+
             let yaw = 180;
             let pitch = 0;
-            document.addEventListener('pointerlockchange', () => {
-                if (document.pointerLockElement === canvas) {
-                    document.addEventListener('mousemove', onMouseMove);
-                } else {
-                    document.removeEventListener('mousemove', onMouseMove);
-                }
-            });
-            const onMouseMove = (e: MouseEvent) => {
+            this.mouseMoveHandler = (e: MouseEvent) => {
                 yaw += e.movementX * 0.2;
                 pitch += e.movementY * 0.2;
                 pitch = Math.max(-40, Math.min(60, pitch));
                 this.camera.rotationOffset = yaw;
                 (this.camera as any)._pitch = pitch;
             };
-            scene.onBeforeRenderObservable.add(() => {
+
+            this.pointerLockHandler = () => {
+                if (document.pointerLockElement === canvas) {
+                    document.addEventListener('mousemove', this.mouseMoveHandler!);
+                } else {
+                    document.removeEventListener('mousemove', this.mouseMoveHandler!);
+                }
+            };
+            document.addEventListener('pointerlockchange', this.pointerLockHandler);
+
+            this.cameraObserver = scene.onBeforeRenderObservable.add(() => {
                 const cam = this.camera as any;
                 const rad = (cam._pitch || 0) * Math.PI / 180;
                 this.camera.heightOffset = Math.max(1, 3 + Math.sin(rad) * 6);
@@ -85,12 +108,12 @@ export class PlayerService {
     }
 
     private registerControls(scene: Scene): void {
-        scene.onKeyboardObservable.add((kbInfo: KeyboardInfo) => {
+        this.keyboardObserver = scene.onKeyboardObservable.add((kbInfo: KeyboardInfo) => {
             const key = kbInfo.event.key.toLowerCase();
             if (kbInfo.type === KeyboardEventTypes.KEYDOWN) this.inputMap[key] = true;
             if (kbInfo.type === KeyboardEventTypes.KEYUP) this.inputMap[key] = false;
         });
-        scene.onBeforeRenderObservable.add(() => this.updateMovement(scene));
+        this.beforeRenderObserver = scene.onBeforeRenderObservable.add(() => this.updateMovement(scene));
     }
 
     private updateMovement(scene: Scene): void {
@@ -137,6 +160,57 @@ export class PlayerService {
         this.playerMesh.rotationQuaternion = null;
         this.playerMesh.rotation.set(0, this.playerMesh.rotation.y, 0);
         impostor.setAngularVelocity(Vector3.Zero());
+    }
+
+    getState(): PlayerState {
+        const pos = this.playerMesh.position;
+        const vel = this.playerMesh.physicsImpostor?.getLinearVelocity() || Vector3.Zero();
+        return {
+            position: [pos.x, pos.y, pos.z],
+            velocity: [vel.x, vel.y, vel.z]
+        };
+    }
+
+    applyState(state: PlayerState): void {
+        this.playerMesh.position.set(state.position[0], state.position[1], state.position[2]);
+        if (this.playerMesh.physicsImpostor) {
+            this.playerMesh.physicsImpostor.setLinearVelocity(new Vector3(
+                state.velocity[0], state.velocity[1], state.velocity[2]
+            ));
+        }
+    }
+
+    dispose(): void {
+        if (this.keyboardObserver && this.scene) {
+            this.scene.onKeyboardObservable.remove(this.keyboardObserver);
+            this.keyboardObserver = undefined;
+        }
+        if (this.beforeRenderObserver && this.scene) {
+            this.scene.onBeforeRenderObservable.remove(this.beforeRenderObserver);
+            this.beforeRenderObserver = undefined;
+        }
+        if (this.cameraObserver && this.scene) {
+            this.scene.onBeforeRenderObservable.remove(this.cameraObserver);
+            this.cameraObserver = undefined;
+        }
+        if (this.canvas && this.clickHandler) {
+            this.canvas.removeEventListener('click', this.clickHandler);
+            this.clickHandler = undefined;
+        }
+        if (this.pointerLockHandler) {
+            document.removeEventListener('pointerlockchange', this.pointerLockHandler);
+            this.pointerLockHandler = undefined;
+        }
+        if (this.mouseMoveHandler) {
+            document.removeEventListener('mousemove', this.mouseMoveHandler);
+            this.mouseMoveHandler = undefined;
+        }
+
+        this.playerMesh?.dispose();
+        this.camera?.dispose();
+        this.inputMap = {};
+        this.canvas = null;
+        this.scene = undefined;
     }
 }
 

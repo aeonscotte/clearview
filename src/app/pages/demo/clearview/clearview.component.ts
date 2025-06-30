@@ -5,6 +5,7 @@ import { MainMenuComponent } from '../../../components/ui/main-menu/main-menu.co
 import { SettingsDialogComponent } from '../../../components/ui/settings-dialog/settings-dialog.component';
 import { UiStateService } from '../../../services/ui-state.service';
 import { CommonModule } from '@angular/common';
+import { SaveGameService } from '../../../engine/core/save-game.service';
 
 @Component({
     selector: 'app-clearview',
@@ -15,7 +16,7 @@ import { CommonModule } from '@angular/common';
 export class ClearviewComponent implements OnInit, OnDestroy {
     showGame = false;
 
-    constructor(private ui: UiStateService) { }
+    constructor(private ui: UiStateService, private saveGame: SaveGameService) { }
 
     ngOnInit(): void {
         document.body.classList.add('demo-dark');
@@ -32,6 +33,7 @@ export class ClearviewComponent implements OnInit, OnDestroy {
 
     startGame(): void {
         this.showGame = true;
+        this.saveGame.loadFromSlot('autosave');
         this.ui.hideMainMenu();
     }
 }

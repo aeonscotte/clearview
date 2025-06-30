@@ -179,6 +179,7 @@ export class Scene001 extends BaseScene {
 
     dispose(): void {
         if (this.scene) {
+            this.playerService.dispose();
             // Let the AssetManager know we're disposing this scene
             this.assetManager.handleSceneDisposal(this.scene);
             this.scene.dispose();

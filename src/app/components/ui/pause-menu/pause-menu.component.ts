@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { GuiService } from '../../../engine/core/gui.service';
 import { Subscription } from 'rxjs';
 import { UiStateService } from '../../../services/ui-state.service';
+import { SaveGameService } from '../../../engine/core/save-game.service';
 
 @Component({
     selector: 'app-pause-menu',
@@ -18,7 +19,8 @@ export class PauseMenuComponent implements OnInit, OnDestroy {
 
     constructor(
         private guiService: GuiService,
-        private ui: UiStateService
+        private ui: UiStateService,
+        private saveGame: SaveGameService
     ) { }
 
     ngOnInit(): void {
@@ -43,6 +45,7 @@ export class PauseMenuComponent implements OnInit, OnDestroy {
     }
 
     returnToMainMenu(): void {
+        this.saveGame.saveToSlot('autosave');
         this.guiService.setPaused(false);
         this.ui.showMainMenu();
     }
