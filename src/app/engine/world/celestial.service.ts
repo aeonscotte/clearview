@@ -102,7 +102,7 @@ export class CelestialService {
             if (worldTime >= this.KEY_TIMES.duskEnd) {
                 nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.duskEnd, this.KEY_TIMES.duskEnd + 2, worldTime); // Evening to midnight
             } else {
-                nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart - 2, this.KEY_TIMES.dawnStart, worldTime); // Midnight to dawn
+                nightFactor = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.dawnStart - 2, worldTime); // Midnight to dawn
             }
         }
         
@@ -175,7 +175,7 @@ export class CelestialService {
         } else if (worldTime >= this.KEY_TIMES.duskEnd || worldTime <= this.KEY_TIMES.dawnStart) {
             moonOpacity = 1.0; // Fully visible at night
         } else if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.sunrise) {
-            moonOpacity = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.sunrise, worldTime); // Fade out
+            moonOpacity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime); // Fade out
         }
         
         // Moon brightness
@@ -196,7 +196,7 @@ export class CelestialService {
                 this.mathUtils.smootherstep(this.KEY_TIMES.midnight, this.KEY_TIMES.dawnStart, worldTime));
         } else if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.sunrise) {
             // Dawn start to sunrise: min to 0
-            moonIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.sunrise, worldTime) * minMoonIntensity;
+            moonIntensity = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime) * minMoonIntensity;
         }
         
         moonIntensity *= moonOpacity; // No intensity if moon isn't visible
@@ -208,7 +208,7 @@ export class CelestialService {
         } else if (worldTime >= this.KEY_TIMES.sunset && worldTime <= this.KEY_TIMES.duskEnd) {
             starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunset, this.KEY_TIMES.duskEnd, worldTime); // Fade in
         } else if (worldTime >= this.KEY_TIMES.dawnStart && worldTime <= this.KEY_TIMES.sunrise) {
-            starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.dawnStart, this.KEY_TIMES.sunrise, worldTime); // Fade out
+            starVisibility = this.mathUtils.smootherstep(this.KEY_TIMES.sunrise, this.KEY_TIMES.dawnStart, worldTime); // Fade out
         }
         
         // Get current sun and moon colors - use pre-allocated colors
