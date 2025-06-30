@@ -5,6 +5,7 @@ import { Scene } from '@babylonjs/core/scene';
 import { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { SceneManagerService } from './scene-manager.service';
 import { TimeService } from '../physics/time.service';
+import { AudioService } from '../audio/audio.service';
 
 @Injectable({
     providedIn: 'root'
@@ -17,7 +18,8 @@ export class GuiService {
 
     constructor(
         private sceneManager: SceneManagerService,
-        private timeService: TimeService
+        private timeService: TimeService,
+        private audioService: AudioService
     ) { }
 
     initialize(scene: Scene): void {
@@ -58,6 +60,7 @@ export class GuiService {
         if (isPaused) {
             // Pause time and animations
             this.timeService.pause();
+            this.audioService.pauseAll();
             this.previousAnimationPausedState = this.activeScene.animationsEnabled;
             this.activeScene.animationsEnabled = false;
 
@@ -74,6 +77,7 @@ export class GuiService {
             // Resume regular function
             this.engine.stopRenderLoop();
             this.timeService.resume();
+            this.audioService.resumeAll();
 
             if (this.activeScene) {
                 this.activeScene.animationsEnabled = this.previousAnimationPausedState;
