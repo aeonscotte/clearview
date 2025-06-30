@@ -6,6 +6,7 @@ import { SceneManagerService } from '../../../engine/core/scene-manager.service'
 import { Scene001 } from '../../../engine/scenes/scene001.scene';
 import { GuiService } from '../../../engine/core/gui.service';
 import { AssetManagerService } from '../../../engine/core/asset-manager.service';
+import { SaveGameService } from '../../../engine/core/save-game.service';
 import { PauseMenuComponent } from '../../ui/pause-menu/pause-menu.component';
 import { LoadingIndicatorComponent } from '../../ui/loading-indicator/loading-indicator.component';
 
@@ -25,7 +26,8 @@ export class ViewportComponent implements AfterViewInit, OnDestroy {
         private engineService: EngineService,
         private sceneManager: SceneManagerService,
         private guiService: GuiService,
-        private assetManager: AssetManagerService
+        private assetManager: AssetManagerService,
+        private saveGameService: SaveGameService
     ) { }
 
     async ngAfterViewInit(): Promise<void> {
@@ -39,6 +41,11 @@ export class ViewportComponent implements AfterViewInit, OnDestroy {
         if (this.resizeListener) {
             window.removeEventListener('resize', this.resizeListener);
             this.resizeListener = null;
+        }
+
+        const scene = this.sceneManager.getCurrentScene();
+        if (scene) {
+            this.saveGameService.save(scene);
         }
 
         // Clean up Babylon.js resources

@@ -21,6 +21,7 @@ import { MathUtils } from '../utils/math-utils.service';
 import { GroundMesh } from '@babylonjs/core';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor';
+import { SaveGameService } from '../core/save-game.service';
 
 // Import shader code
 import { vertexShader as skyVertexShader } from '../shaders/enhancedSky.vertex';
@@ -46,6 +47,7 @@ export class Scene001 extends BaseScene {
         // private mathUtils: MathUtils,
         private physicsService: PhysicsService,
         private playerService: PlayerService,
+        private saveGameService: SaveGameService,
     ) {
         super(engineService);
     }
@@ -73,7 +75,12 @@ export class Scene001 extends BaseScene {
         this.setupSky();
 
         // Intialize player (after terrain is ready)
-        this.playerService.init(this.scene); 
+        this.playerService.init(this.scene);
+
+        // Load saved state if available
+        if (this.saveGameService.hasSave()) {
+            this.saveGameService.load(this.scene);
+        }
 
         return this.scene;
     }

@@ -78,4 +78,11 @@ export class TimeService {
         this.startTime = performance.now() - (this.elapsed * 1000);
         this.continuousRotation = this.elapsed * this.starRotationFactor;
     }
+
+    // Restore elapsed time directly (used when loading save games)
+    setElapsed(seconds: number): void {
+        this.elapsed = seconds;
+        this.startTime = performance.now() - (seconds * 1000);
+        this.continuousRotation = this.elapsed * this.starRotationFactor;
+    }
 }
