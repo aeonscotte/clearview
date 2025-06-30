@@ -1,2 +1,3 @@
 <!-- src/app/pages/demo/clearview/clearview.component.html -->
-<clearview-viewport></clearview-viewport>
+<app-main-menu *ngIf="showMenu" (start)="startScene()"></app-main-menu>
+<clearview-viewport *ngIf="!showMenu"></clearview-viewport>
