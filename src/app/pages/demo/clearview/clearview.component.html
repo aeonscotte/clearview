@@ -1,2 +1,4 @@
 <!-- src/app/pages/demo/clearview/clearview.component.html -->
-<clearview-viewport></clearview-viewport>
+<app-main-menu (start)="startGame()" *ngIf="!showGame"></app-main-menu>
+<clearview-viewport *ngIf="showGame"></clearview-viewport>
+<app-settings-dialog></app-settings-dialog>

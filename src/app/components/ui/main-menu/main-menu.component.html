@@ -1,18 +1,15 @@
-<!-- src/app/components/ui/pause-menu/pause-menu.component.html -->
-<div class="pause-menu-overlay" [class.visible]="isVisible">
+<div class="main-menu-overlay" [class.visible]="isVisible">
     <main>
         <div id="parchment"></div>
         <div id="contain">
-            <h2 class="title">Game Paused</h2>
+            <h2 class="title">Project ClearView</h2>
             <div class="menu-content">
-                <button class="btn-parchment" (click)="resumeGame()">Resume</button>
+                <button class="btn-parchment" (click)="startGame()">Start</button>
                 <button class="btn-parchment" (click)="openSettings()">Settings</button>
-                <button class="btn-parchment" (click)="returnToMainMenu()">Main Menu</button>
             </div>
         </div>
     </main>
 
-    <!-- SVG Filter for wavy parchment edge effect -->
     <svg>
         <filter id="wavy2">
             <feTurbulence x="0" y="0" baseFrequency="0.02" numOctaves="5" seed="1" />
