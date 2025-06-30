@@ -120,8 +120,8 @@ export class Scene001 extends BaseScene {
     private async setupTerrain(): Promise<void> {
         return new Promise<void>((resolve) => {
             // Add a flat ground for debugging
-            const flatGround = MeshBuilder.CreateGround('flatGround', { width: 512, height: 512 }, this.scene);
-            flatGround.position = new Vector3(0, -10, 0);
+            const flatGround = MeshBuilder.CreateGround('flatGround', { width: 1009, height: 1009 }, this.scene);
+            flatGround.position = new Vector3(0, -9, 0);
             flatGround.material = new StandardMaterial('flatGroundMat', this.scene);
             flatGround.material.alpha = 0.3; // Make it semi-transparent
             this.physicsService.addImpostor(flatGround, PhysicsImpostor.BoxImpostor, { mass: 0, friction: 0.8 });
@@ -137,10 +137,10 @@ export class Scene001 extends BaseScene {
             // Heightmap terrain as before
             const ground = this.terrainService.createHeightMap(this.scene, {
                 name: 'Terrain001',
-                url: '/assets/terrain/heightmap.png',
-                width: 512,
-                height: 512,
-                subdivisions: 128,
+                url: '/assets/terrain/heightmap_gaea.png',
+                width: 1009,
+                height: 1009,
+                subdivisions: 1009,
                 minHeight: 0,
                 maxHeight: 32
             }, (ground) => {
@@ -148,7 +148,7 @@ export class Scene001 extends BaseScene {
 
                 const material = this.materialService.createGroundMaterial(
                     this.terrainPath,
-                    64,
+                    1009,
                     this.scene
                 );
                 ground.material = material;
@@ -156,11 +156,6 @@ export class Scene001 extends BaseScene {
 
                 this.physicsService.addHeightmapImpostor(ground as GroundMesh, { mass: 0, friction: 0.8 });
                 console.log('Heightmap impostor:', (ground as any).physicsImpostor?.type);
-
-                const debugSphere = MeshBuilder.CreateSphere('debugSphere', { diameter: 2 }, this.scene);
-                debugSphere.position = new Vector3(0, 2, 0);
-                debugSphere.material = material;
-                this.lightService.addShadowCaster(debugSphere);
 
                 resolve();
             });
