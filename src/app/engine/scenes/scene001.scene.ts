@@ -10,6 +10,7 @@ import { CameraService } from '../player/camera.service';
 import { LightService } from '../world/light.service';
 import { TerrainService } from '../world/terrain.service';
 import { PhysicsService } from '../physics/physics.service';
+import { WaterService } from '../world/water.service';
 import { PlayerService } from '../player/player.service';
 import { MaterialService } from '../material/material.service';
 import { SkyService } from '../world/sky.service';
@@ -46,6 +47,7 @@ export class Scene001 extends BaseScene {
         // private mathUtils: MathUtils,
         private physicsService: PhysicsService,
         private playerService: PlayerService,
+        private waterService: WaterService,
     ) {
         super(engineService);
     }
@@ -69,6 +71,9 @@ export class Scene001 extends BaseScene {
 
         // Set up scene elements that need assets
         await this.setupTerrain();
+        const waterPlane = MeshBuilder.CreateGround('water', { width: 200, height: 200 }, this.scene);
+        waterPlane.position = new Vector3(0, 0, 0);
+        this.waterService.createWater({ mesh: waterPlane, level: 0 });
 
         this.setupSky();
 
@@ -133,6 +138,7 @@ export class Scene001 extends BaseScene {
             testBox.material = new StandardMaterial('testBoxMat', this.scene);
             this.physicsService.addImpostor(testBox, PhysicsImpostor.BoxImpostor, { mass: 1, friction: 0.5 });
             console.log('Test box impostor:', testBox.physicsImpostor?.type);
+            this.physicsService.registerFloatable(testBox, 64, 0.6);
 
             // Heightmap terrain as before
             const ground = this.terrainService.createHeightMap(this.scene, {
@@ -175,6 +181,7 @@ export class Scene001 extends BaseScene {
         this.lightService.update();
         this.skyService.update();
         this.atmosphereService.update(this.scene);
+        this.physicsService.update(deltaTime);
     }
 
     dispose(): void {
