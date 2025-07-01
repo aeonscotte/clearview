@@ -11,8 +11,7 @@ export class TimeService {
     private deltaSec = 0;
     private _isPaused = false;
     private pauseStartTime = 0;
-    // public readonly dayDurationInSeconds = 1440;
-    public readonly dayDurationInSeconds = 480;
+    public readonly dayDurationInSeconds = 24 * 60 * 10; // 24 hours, 10 minutes per hour
     private continuousRotation = 0;
     private starRotationFactor: number;
 

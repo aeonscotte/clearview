@@ -160,9 +160,14 @@ export class Scene001 extends BaseScene {
                 resolve();
             });
 
-            // Create a test campfire
-            const campfire = new Campfire(this.scene, new Vector3(0, 9.5, 0), this.timeService);
-            this.campfires.push(campfire);
+            // Create test campfires
+            const campfire1 = new Campfire(this.scene, new Vector3(0, 9.45, 0), this.timeService);
+            const campfire2 = new Campfire(this.scene, new Vector3(1, 9.7, 1), this.timeService);
+            const campfire3 = new Campfire(this.scene, new Vector3(1, 9.7, -1), this.timeService);
+            const campfire4 = new Campfire(this.scene, new Vector3(-1, 9.2, -1), this.timeService);
+            const campfire5 = new Campfire(this.scene, new Vector3(-1, 9.2, 1), this.timeService);
+
+            this.campfires.push(campfire1, campfire2, campfire3, campfire4, campfire5);
         });
     }
 
