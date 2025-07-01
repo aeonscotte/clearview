@@ -70,7 +70,7 @@ export class Campfire {
 
     private createParticles(): void {
         this.fire = new ParticleSystem('fire', 100, this.scene);
-        this.fire.particleTexture = new Texture('https://playground.babylonjs.com/textures/flare.png', this.scene);
+        this.fire.particleTexture = new Texture('/assets/textures/flare.png', this.scene);
         this.fire.emitter = this.root as any;
         this.fire.minEmitBox = new Vector3(-0.05, 0, -0.05);
         this.fire.maxEmitBox = new Vector3(0.05, 0, 0.05);
@@ -94,7 +94,7 @@ export class Campfire {
         this.fire.start();
 
         this.smoke = new ParticleSystem('smoke', 50, this.scene);
-        this.smoke.particleTexture = new Texture('https://playground.babylonjs.com/textures/flare.png', this.scene);
+        this.smoke.particleTexture = new Texture('/assets/textures/flare.png', this.scene);
         this.smoke.particleTexture.hasAlpha = true;
         this.smoke.emitter = this.root as any;
         this.smoke.minEmitBox = new Vector3(-0.03, 0.07, -0.03);
