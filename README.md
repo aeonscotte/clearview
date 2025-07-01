@@ -1,6 +1,6 @@
 # Clearview
 
-Clearview is a modern web application framework for building high-performance, interactive 3D experiences in the browser. Built with Angular, TypeScript, and Babylon.js, it provides a modular engine architecture for rendering, lighting, sky simulation, and atmospheric effects, making it easy to develop immersive 3D web applications that run smoothly across devices.
+Clearview is a modern web application framework for building high-performance, interactive 3D experiences in the browser. Built with Angular, TypeScript, and js, it provides a modular engine architecture for rendering, lighting, sky simulation, and atmospheric effects, making it easy to develop immersive 3D web applications that run smoothly across devices.
 
 ## Core Principles
 
@@ -219,7 +219,7 @@ update(): void {
 
 ### Core Services
 
-- **EngineService**: Wraps the Babylon.js engine, handling WebGL context and canvas
+- **EngineService**: Wraps the js engine, handling WebGL context and canvas
 - **SceneManagerService**: Orchestrates scene loading, transitions, and render loop
 - **ShaderRegistryService**: Manages shader registration and compilation
 
@@ -387,7 +387,7 @@ update(): void {
 ## Version Compatibility
 
 - **Angular**: 16.0.0+
-- **Babylon.js**: 5.0.0+
+- **js**: 5.0.0+
 - **TypeScript**: 4.8.0+
 - **RxJS**: 7.0.0+
 

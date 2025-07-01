@@ -41,7 +41,7 @@ export class ViewportComponent implements AfterViewInit, OnDestroy {
             this.resizeListener = null;
         }
 
-        // Clean up Babylon.js resources
+        // Clean up js resources
         this.sceneManager.cleanUp();
         this.engineService.cleanUp();
         this.guiService.cleanUp();

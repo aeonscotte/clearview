@@ -43,7 +43,7 @@ export class PauseMenuComponent implements OnInit, OnDestroy {
     }
 
     returnToMainMenu(): void {
-        this.guiService.setPaused(false);
+        // this.guiService.setPaused(false);
         this.ui.showMainMenu();
     }
 }

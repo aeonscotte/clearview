@@ -18,7 +18,7 @@ import { CelestialService } from '../world/celestial.service';
 import { ShaderRegistryService } from '../shaders/shader-registry.service';
 import { AssetManagerService } from '../core/asset-manager.service';
 import { MathUtils } from '../utils/math-utils.service';
-import { GroundMesh } from '@babylonjs/core';
+import { Angle, Color3, Color4, GroundMesh, ParticleSystem, PointLight, Texture } from '@babylonjs/core';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor';
 
@@ -159,6 +159,102 @@ export class Scene001 extends BaseScene {
 
                 resolve();
             });
+
+            // Add campfire for testing
+            const fireHeight = 9.5;
+            // Log Material
+            const logMaterial = new StandardMaterial("logMat", this.scene);
+            logMaterial.diffuseColor = new Color3(0.81, 0.49, 0.16);
+            logMaterial.roughness = 1;
+            logMaterial.specularColor = Color3.Black();
+
+            // Logs - placed in equilateral triangle layout
+            const R = 0.05;
+            const sqrt3over2 = Math.sqrt(3) / 2;
+            const tiltDeg = 70;
+
+            // Equilateral triangle vertices (logs) centered on (0, 0)
+            const logPositions = [
+                { x: 0, z: R },
+                { x: -sqrt3over2 * R, z: -0.5 * R },
+                { x: sqrt3over2 * R, z: -0.5 * R }
+            ];
+        
+            logPositions.forEach((pos, i) => {
+                const log = MeshBuilder.CreateCylinder(`log${i}`, { diameter: 0.05, height: 0.3 }, this.scene);
+                log.material = logMaterial;
+            
+                log.position.set(pos.x, fireHeight + 0.1, pos.z);
+            
+                // Make the log face the center
+                const angleToCenter = Math.atan2(-pos.x, -pos.z); // Y rotation
+                log.rotation.y = angleToCenter;
+            
+                // Lean inward
+                log.rotation.z = Angle.FromDegrees(tiltDeg).radians();
+            });
+        
+            // Fire Light (centered)
+            const fireLight = new PointLight("fireLight", new Vector3(0, fireHeight + 0.2, 0), this.scene);
+            fireLight.diffuse = new Color3(1.0, 0.5, 0.2);
+            fireLight.intensity = 2;
+            fireLight.range = 2;
+        
+            this.scene.onBeforeRenderObservable.add(() => {
+                const time = performance.now() * 0.002;
+                fireLight.intensity = 1.8 + Math.sin(time * 8) * 0.3 + Math.random() * 0.2;
+            });
+        
+            // Fire Particles
+            const fire = new ParticleSystem("fire", 100, this.scene);
+            fire.particleTexture = new Texture("https://playground.babylonjs.com/textures/flare.png", this.scene);
+            fire.emitter = new Vector3(0, fireHeight + 0.13, 0);
+            fire.minEmitBox = new Vector3(-0.05, 0, -0.05);
+            fire.maxEmitBox = new Vector3(0.05, 0, 0.05);
+            fire.color1 = new Color4(1, 0.77, 0, 0.4);
+            fire.color2 = new Color4(1, 0.3, 0, 0.3);
+            fire.colorDead = new Color4(0.2, 0, 0, 0.0);
+            fire.minSize = 0.07;
+            fire.maxSize = 0.15;
+            fire.minLifeTime = 0.3;
+            fire.maxLifeTime = 0.8;
+            fire.emitRate = 80;
+            fire.blendMode = ParticleSystem.BLENDMODE_ONEONE;
+            fire.direction1 = new Vector3(0, 0.5, 0);
+            fire.direction2 = new Vector3(0, 0.8, 0);
+            fire.gravity = new Vector3(0, 0, 0);
+            fire.minAngularSpeed = 0;
+            fire.maxAngularSpeed = Math.PI;
+            fire.minEmitPower = 0.4;
+            fire.maxEmitPower = 0.6;
+            fire.updateSpeed = 0.01;
+            fire.start();
+        
+            // Smoke Particles
+            const smoke = new ParticleSystem("smoke", 50, this.scene);
+            smoke.particleTexture = new Texture("https://playground.babylonjs.com/textures/flare.png", this.scene);
+            smoke.particleTexture.hasAlpha = true;
+            smoke.emitter = new Vector3(0, fireHeight + 0.2, 0);
+            smoke.minEmitBox = new Vector3(-0.03, 0, -0.03);
+            smoke.maxEmitBox = new Vector3(0.03, 0, 0.03);
+            smoke.color1 = new Color4(0.2, 0.2, 0.2, 0.1);
+            smoke.color2 = new Color4(0.1, 0.1, 0.1, 0.06);
+            smoke.colorDead = new Color4(0, 0, 0, 0.0);
+            smoke.minSize = 0.08;
+            smoke.maxSize = 0.15;
+            smoke.minLifeTime = 1;
+            smoke.maxLifeTime = 2.5;
+            smoke.emitRate = 100;
+            smoke.blendMode = ParticleSystem.BLENDMODE_ONEONE;
+            smoke.direction1 = new Vector3(-0.05, 0.9, -0.05);
+            smoke.direction2 = new Vector3(0.05, 1.1, 0.05);
+            smoke.gravity = new Vector3(0, 0, 0);
+            smoke.minAngularSpeed = 0;
+            smoke.maxAngularSpeed = 0.3;
+            smoke.minEmitPower = 0.2;
+            smoke.maxEmitPower = 0.4;
+            smoke.updateSpeed = 0.01;
+            smoke.start();
         });
     }
 
