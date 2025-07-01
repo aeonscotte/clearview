@@ -51,6 +51,7 @@ export class MaterialService {
             material.ambientTexture = aoTex;
             material.ambientTextureStrength = 0.3;
             material.bumpTexture.level = 0.5;
+            material.maxSimultaneousLights = 8;
 
             // Register the material
             this.assetManager.registerMaterial(material, materialName, scene);
