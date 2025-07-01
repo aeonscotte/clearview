@@ -15,6 +15,7 @@ import { MaterialService } from '../material/material.service';
 import { SkyService } from '../world/sky.service';
 import { AtmosphereService } from '../world/atmosphere.service';
 import { CelestialService } from '../world/celestial.service';
+import { WaterService } from '../world/water.service';
 import { ShaderRegistryService } from '../shaders/shader-registry.service';
 import { AssetManagerService } from '../core/asset-manager.service';
 import { MathUtils } from '../utils/math-utils.service';
@@ -46,6 +47,7 @@ export class Scene001 extends BaseScene {
         // private mathUtils: MathUtils,
         private physicsService: PhysicsService,
         private playerService: PlayerService,
+        private waterService: WaterService,
     ) {
         super(engineService);
     }
@@ -69,6 +71,12 @@ export class Scene001 extends BaseScene {
 
         // Set up scene elements that need assets
         await this.setupTerrain();
+
+        // Create water plane at sea level with gentle waves
+        this.waterService.createWater(this.scene, 1009, 0, 0.5, 0.5);
+
+        // Add floating beams around the map
+        this.createBuoyantBeams();
 
         this.setupSky();
 
@@ -134,6 +142,9 @@ export class Scene001 extends BaseScene {
             this.physicsService.addImpostor(testBox, PhysicsImpostor.BoxImpostor, { mass: 1, friction: 0.5 });
             console.log('Test box impostor:', testBox.physicsImpostor?.type);
 
+            // Register for buoyancy
+            this.waterService.registerFloatingMesh(testBox);
+
             // Heightmap terrain as before
             const ground = this.terrainService.createHeightMap(this.scene, {
                 name: 'Terrain001',
@@ -167,6 +178,23 @@ export class Scene001 extends BaseScene {
         this.atmosphereService.setup(this.scene);
     }
 
+    private createBuoyantBeams(): void {
+        const radius = 1009 * 0.5 * 0.65; // 65% from center
+        const positions = [
+            new Vector3(radius, 5, radius),
+            new Vector3(-radius, 5, radius),
+            new Vector3(radius, 5, -radius)
+        ];
+
+        positions.forEach((pos, index) => {
+            const beam = MeshBuilder.CreateBox(`beam${index}`, { width: 1, height: 0.5, depth: 6 }, this.scene);
+            beam.position = pos;
+            beam.material = new StandardMaterial(`beamMat${index}`, this.scene);
+            this.physicsService.addImpostor(beam, PhysicsImpostor.BoxImpostor, { mass: 2, friction: 0.5 });
+            this.waterService.registerFloatingMesh(beam);
+        });
+    }
+
     update(deltaTime: number): void {
         if (this.timeService.isPaused()) return;
 
@@ -175,12 +203,14 @@ export class Scene001 extends BaseScene {
         this.lightService.update();
         this.skyService.update();
         this.atmosphereService.update(this.scene);
+        this.waterService.update();
     }
 
     dispose(): void {
         if (this.scene) {
             // Let the AssetManager know we're disposing this scene
             this.assetManager.handleSceneDisposal(this.scene);
+            this.waterService.dispose();
             this.scene.dispose();
         }
     }
