@@ -4,6 +4,7 @@ import { Scene } from '@babylonjs/core/scene';
 import { Mesh, MeshBuilder } from '@babylonjs/core/Meshes';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Ray } from '@babylonjs/core/Culling/ray';
 import { FollowCamera } from '@babylonjs/core/Cameras/followCamera';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
 import { VirtualJoystick } from '@babylonjs/core/Misc/virtualJoystick';
@@ -17,6 +18,8 @@ export class PlayerService {
     private thirdPersonCamera!: FollowCamera;
     private leftJoystick!: VirtualJoystick;
     private rightJoystick!: VirtualJoystick;
+    private readonly radius = 0.5;
+    private readonly height = 1.8;
     private yaw = 0;
     private pitch = 0;
     private isFirstPerson = true;
@@ -29,20 +32,59 @@ export class PlayerService {
     }
 
     private createPlayer(scene: Scene): void {
-        const radius = 0.5;
-        const height = 1.8;
+        const radius = this.radius;
+        const height = this.height;
 
-        this.playerMesh = MeshBuilder.CreateCapsule('player', { height, radius }, scene);
-        this.playerMesh.isVisible = false;
-        const material = new StandardMaterial('playerMat', scene);
-        this.playerMesh.material = material;
+        this.playerMesh = new Mesh('playerRoot', scene);
         this.playerMesh.position = new Vector3(0, 20, 0);
         this.playerMesh.physicsImpostor = new PhysicsImpostor(
             this.playerMesh,
-            PhysicsImpostor.CapsuleImpostor,
-            { mass: 0.07, friction: 0.3, restitution: 0 },
+            PhysicsImpostor.NoImpostor,
+            { mass: 0 },
             scene
         );
+
+        const visual = MeshBuilder.CreateCapsule('playerVisual', { height, radius }, scene);
+        visual.parent = this.playerMesh;
+        visual.isVisible = false;
+        const material = new StandardMaterial('playerMat', scene);
+        visual.material = material;
+
+        const sphereOffset = height / 2 - radius;
+
+        const sphereBottom = MeshBuilder.CreateSphere('pSphereBottom', { diameter: radius * 2, segments: 8 }, scene);
+        sphereBottom.isVisible = false;
+        sphereBottom.parent = this.playerMesh;
+        sphereBottom.position.y = -sphereOffset;
+        sphereBottom.physicsImpostor = new PhysicsImpostor(
+            sphereBottom,
+            PhysicsImpostor.SphereImpostor,
+            { mass: 0.07 / 3, friction: 0.3, restitution: 0 },
+            scene
+        );
+
+        const sphereTop = MeshBuilder.CreateSphere('pSphereTop', { diameter: radius * 2, segments: 8 }, scene);
+        sphereTop.isVisible = false;
+        sphereTop.parent = this.playerMesh;
+        sphereTop.position.y = sphereOffset;
+        sphereTop.physicsImpostor = new PhysicsImpostor(
+            sphereTop,
+            PhysicsImpostor.SphereImpostor,
+            { mass: 0.07 / 3, friction: 0.3, restitution: 0 },
+            scene
+        );
+
+        const cylinderHeight = height - radius * 2;
+        const cylinder = MeshBuilder.CreateCylinder('pCylinder', { height: cylinderHeight, diameter: radius * 2, tessellation: 6 }, scene);
+        cylinder.isVisible = false;
+        cylinder.parent = this.playerMesh;
+        cylinder.physicsImpostor = new PhysicsImpostor(
+            cylinder,
+            PhysicsImpostor.CylinderImpostor,
+            { mass: 0.07 / 3, friction: 0.3, restitution: 0 },
+            scene
+        );
+
         this.playerMesh.physicsImpostor.registerBeforePhysicsStep(() => {
             this.playerMesh.rotationQuaternion = null;
             this.playerMesh.rotation.set(0, this.yaw * Math.PI / 180, 0);
@@ -109,7 +151,10 @@ export class PlayerService {
 
         const forward = new Vector3(-Math.sin(rad), 0, -Math.cos(rad));
         const right = new Vector3(-Math.sin(rad + Math.PI / 2), 0, -Math.cos(rad + Math.PI / 2));
-        const isGrounded = Math.abs(velocity.y) < 0.05;
+
+        const ray = new Ray(this.playerMesh.position, Vector3.Down(), this.height / 2 + 0.2);
+        const pick = scene.pickWithRay(ray, m => !!m.physicsImpostor && m.physicsImpostor.mass === 0 && m !== this.playerMesh);
+        const isGrounded = !!pick && pick.hit;
 
         if (this.inputMap['w']) moveImpulse.addInPlace(forward);
         if (this.inputMap['s']) moveImpulse.subtractInPlace(forward);
