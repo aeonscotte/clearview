@@ -7,17 +7,15 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Ray } from '@babylonjs/core/Culling/ray';
 import { FollowCamera } from '@babylonjs/core/Cameras/followCamera';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
-import { VirtualJoystick } from '@babylonjs/core/Misc/virtualJoystick';
 import { KeyboardEventTypes, KeyboardInfo } from '@babylonjs/core/Events/keyboardEvents';
 import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor';
+import { Tools } from '@babylonjs/core/Misc/tools';
 
 @Injectable({ providedIn: 'root' })
 export class PlayerService {
     private playerMesh!: Mesh;
     private firstPersonCamera!: FreeCamera;
     private thirdPersonCamera!: FollowCamera;
-    private leftJoystick!: VirtualJoystick;
-    private rightJoystick!: VirtualJoystick;
     private playerVisual!: Mesh;
     private playerMaterial!: StandardMaterial;
     private readonly radius = 0.5;
@@ -103,7 +101,8 @@ export class PlayerService {
         this.firstPersonCamera.parent = this.playerMesh;
         this.firstPersonCamera.minZ = 0.1;
         this.firstPersonCamera.maxZ = 1000;
-        this.firstPersonCamera.attachControl(canvas, true);
+        this.firstPersonCamera.fov = Tools.ToRadians(75);
+        this.firstPersonCamera.inputs.clear();
 
         this.thirdPersonCamera = new FollowCamera('ThirdPersonCamera', this.playerMesh.position, scene);
         this.thirdPersonCamera.lockedTarget = this.playerMesh;
@@ -116,8 +115,21 @@ export class PlayerService {
 
         scene.activeCamera = this.firstPersonCamera;
 
-        this.leftJoystick = new VirtualJoystick(true, { alwaysVisible: true });
-        this.rightJoystick = new VirtualJoystick(false, { alwaysVisible: true });
+        if (canvas) {
+            canvas.addEventListener('click', () => canvas.requestPointerLock());
+            const onMouseMove = (e: MouseEvent) => {
+                this.yaw += e.movementX * 0.2;
+                this.pitch += e.movementY * 0.2;
+                this.pitch = Math.max(-80, Math.min(80, this.pitch));
+            };
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === canvas) {
+                    document.addEventListener('mousemove', onMouseMove);
+                } else {
+                    document.removeEventListener('mousemove', onMouseMove);
+                }
+            });
+        }
     }
 
     private registerControls(scene: Scene): void {
@@ -143,15 +155,13 @@ export class PlayerService {
         const sprintMultiplier = 2.0;
         const jumpStrength = 4;
 
-        this.yaw += this.rightJoystick.deltaPosition.x * 2;
-        this.pitch += this.rightJoystick.deltaPosition.y * 2;
-        this.pitch = Math.max(-60, Math.min(60, this.pitch));
-
         const rad = (this.yaw * Math.PI) / 180;
 
         this.firstPersonCamera.rotation.x = this.pitch * Math.PI / 180;
         this.firstPersonCamera.rotation.y = rad;
+        this.firstPersonCamera.rotation.z = 0;
         this.thirdPersonCamera.rotationOffset = this.yaw;
+        (this.thirdPersonCamera as any)._pitch = this.pitch;
 
         const forward = new Vector3(-Math.sin(rad), 0, -Math.cos(rad));
         const right = new Vector3(-Math.sin(rad + Math.PI / 2), 0, -Math.cos(rad + Math.PI / 2));
@@ -172,8 +182,6 @@ export class PlayerService {
         if (this.inputMap['a']) moveImpulse.subtractInPlace(right);
         if (this.inputMap['d']) moveImpulse.addInPlace(right);
 
-        moveImpulse.addInPlace(forward.scale(this.leftJoystick.deltaPosition.y));
-        moveImpulse.addInPlace(right.scale(this.leftJoystick.deltaPosition.x));
 
         if (moveImpulse.length() > 0) {
             moveImpulse.normalize();
