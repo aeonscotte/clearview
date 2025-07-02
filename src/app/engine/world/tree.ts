@@ -41,8 +41,8 @@ export class Tree {
         angleTolerance: 5,
         bushiness: 0.5,
         lengthFactor: 0.9,
-        lengthDecay: 0.75,
-        phototropism: 1,
+        lengthDecay: 0.6,
+        phototropism: 1.25,
         baseTopFactor: 0.7,
         tipFactor: 0.3,
         maxBranches: 3,       // inclusive upper bound will add 1
@@ -90,10 +90,12 @@ export class Tree {
 
         let numBranches = 0;
         let topRadius = baseRadius * opts.baseTopFactor;
+        let childBaseRadius = 0;
 
         if (!isTip) {
-            numBranches = Math.floor(this.rand(1, opts.maxBranches + 1));
-            topRadius = Math.max(baseRadius / Math.sqrt(numBranches), opts.minTipRadius);
+            numBranches = Math.floor(this.rand(2, opts.maxBranches + 1));
+            childBaseRadius = Math.max(topRadius / Math.sqrt(numBranches), opts.minTipRadius);
+            topRadius = childBaseRadius * Math.sqrt(numBranches);
         } else {
             topRadius = Math.max(baseRadius * opts.tipFactor, opts.minTipRadius);
         }
@@ -116,15 +118,16 @@ export class Tree {
             for (let i = 0; i < numBranches; i++) {
                 const mod = this.rand(opts.minGrowth, opts.maxGrowth);
                 const yaw = (i * yawSpacing + this.rand(-opts.angleTolerance, opts.angleTolerance)) * Math.PI / 180;
-                const phototropismFactor = 1 - opts.phototropism * normalizedDepth;
-                const pitchBase = (Math.PI / 2) * opts.bushiness * phototropismFactor;
+                const upwardBias = opts.phototropism * normalizedDepth;
+                let pitchBase = (Math.PI / 2) * opts.bushiness * (1 - upwardBias);
+                pitchBase = Math.max(0, pitchBase);
                 let pitch = pitchBase + this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
                 const maxPitch = 75 * Math.PI / 180;
                 pitch = Math.max(0, Math.min(maxPitch, pitch));
                 const roll = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
 
                 const childSize = size * opts.lengthFactor * opts.lengthDecay * mod;
-                const childRadius = topRadius;
+                const childRadius = childBaseRadius;
 
                 const knuckle = MeshBuilder.CreateSphere('knuckle', {
                     diameter: Math.max(childRadius, topRadius) * 2 * 1.05,
