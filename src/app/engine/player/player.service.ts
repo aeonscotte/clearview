@@ -2,15 +2,24 @@
 import { Injectable } from '@angular/core';
 import { Scene } from '@babylonjs/core/scene';
 import { Mesh, MeshBuilder } from '@babylonjs/core/Meshes';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { FollowCamera } from '@babylonjs/core/Cameras/followCamera';
+import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
+import { VirtualJoystick } from '@babylonjs/core/Misc/virtualJoystick';
 import { KeyboardEventTypes, KeyboardInfo } from '@babylonjs/core/Events/keyboardEvents';
 import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor';
 
 @Injectable({ providedIn: 'root' })
 export class PlayerService {
     private playerMesh!: Mesh;
-    private camera!: FollowCamera;
+    private firstPersonCamera!: FreeCamera;
+    private thirdPersonCamera!: FollowCamera;
+    private leftJoystick!: VirtualJoystick;
+    private rightJoystick!: VirtualJoystick;
+    private yaw = 0;
+    private pitch = 0;
+    private isFirstPerson = true;
     private inputMap: { [key: string]: boolean } = {};
 
     init(scene: Scene): void {
@@ -22,72 +31,58 @@ export class PlayerService {
     private createPlayer(scene: Scene): void {
         const radius = 0.5;
         const height = 1.8;
-        const sphereOffset = (height / 2) - radius;
 
-        this.playerMesh = MeshBuilder.CreateSphere('player_root', { diameter: radius * 2 }, scene);
+        this.playerMesh = MeshBuilder.CreateCapsule('player', { height, radius }, scene);
         this.playerMesh.isVisible = false;
+        const material = new StandardMaterial('playerMat', scene);
+        this.playerMesh.material = material;
         this.playerMesh.position = new Vector3(0, 20, 0);
         this.playerMesh.physicsImpostor = new PhysicsImpostor(
             this.playerMesh,
-            PhysicsImpostor.SphereImpostor,
+            PhysicsImpostor.CapsuleImpostor,
             { mass: 0.07, friction: 0.3, restitution: 0 },
             scene
         );
-
-        const sphereBottom = MeshBuilder.CreateSphere('player_sphere_bottom', { diameter: radius * 2 }, scene);
-        sphereBottom.position = new Vector3(0, -sphereOffset, 0);
-        sphereBottom.parent = this.playerMesh;
-        const sphereTop = MeshBuilder.CreateSphere('player_sphere_top', { diameter: radius * 2 }, scene);
-        sphereTop.position = new Vector3(0, sphereOffset, 0);
-        sphereTop.parent = this.playerMesh;
-        const cylinder = MeshBuilder.CreateCylinder('player_cylinder', { height: height - 2 * radius, diameter: radius * 2 }, scene);
-        cylinder.position = new Vector3(0, 0, 0);
-        cylinder.parent = this.playerMesh;
+        this.playerMesh.physicsImpostor.registerBeforePhysicsStep(() => {
+            this.playerMesh.rotationQuaternion = null;
+            this.playerMesh.rotation.set(0, this.yaw * Math.PI / 180, 0);
+            this.playerMesh.physicsImpostor!.setAngularVelocity(Vector3.Zero());
+        });
     }
 
     private createCamera(scene: Scene): void {
-        this.camera = new FollowCamera('ThirdPersonCamera', this.playerMesh.position, scene);
-        this.camera.lockedTarget = this.playerMesh;
-        this.camera.radius = 10;
-        this.camera.heightOffset = 3;
-        this.camera.rotationOffset = 180;
-        this.camera.cameraAcceleration = 0.05;
-        this.camera.maxCameraSpeed = 10;
-        (this.camera as any)._pitch = 0;
-        scene.activeCamera = this.camera;
-
         const canvas = scene.getEngine().getRenderingCanvas();
-        if (canvas) {
-            canvas.addEventListener('click', () => canvas.requestPointerLock());
-            let yaw = 180;
-            let pitch = 0;
-            document.addEventListener('pointerlockchange', () => {
-                if (document.pointerLockElement === canvas) {
-                    document.addEventListener('mousemove', onMouseMove);
-                } else {
-                    document.removeEventListener('mousemove', onMouseMove);
-                }
-            });
-            const onMouseMove = (e: MouseEvent) => {
-                yaw += e.movementX * 0.2;
-                pitch += e.movementY * 0.2;
-                pitch = Math.max(-40, Math.min(60, pitch));
-                this.camera.rotationOffset = yaw;
-                (this.camera as any)._pitch = pitch;
-            };
-            scene.onBeforeRenderObservable.add(() => {
-                const cam = this.camera as any;
-                const rad = (cam._pitch || 0) * Math.PI / 180;
-                this.camera.heightOffset = Math.max(1, 3 + Math.sin(rad) * 6);
-                this.camera.radius = Math.max(6, 10 - Math.sin(rad) * 2);
-            });
-        }
+
+        this.firstPersonCamera = new FreeCamera('FirstPersonCamera', new Vector3(0, 1.6, 0), scene);
+        this.firstPersonCamera.parent = this.playerMesh;
+        this.firstPersonCamera.minZ = 0.1;
+        this.firstPersonCamera.maxZ = 1000;
+        this.firstPersonCamera.attachControl(canvas, true);
+
+        this.thirdPersonCamera = new FollowCamera('ThirdPersonCamera', this.playerMesh.position, scene);
+        this.thirdPersonCamera.lockedTarget = this.playerMesh;
+        this.thirdPersonCamera.radius = 10;
+        this.thirdPersonCamera.heightOffset = 3;
+        this.thirdPersonCamera.rotationOffset = 180;
+        this.thirdPersonCamera.cameraAcceleration = 0.05;
+        this.thirdPersonCamera.maxCameraSpeed = 10;
+        (this.thirdPersonCamera as any)._pitch = 0;
+
+        scene.activeCamera = this.firstPersonCamera;
+
+        this.leftJoystick = new VirtualJoystick(true, { alwaysVisible: true });
+        this.rightJoystick = new VirtualJoystick(false, { alwaysVisible: true });
     }
 
     private registerControls(scene: Scene): void {
         scene.onKeyboardObservable.add((kbInfo: KeyboardInfo) => {
             const key = kbInfo.event.key.toLowerCase();
-            if (kbInfo.type === KeyboardEventTypes.KEYDOWN) this.inputMap[key] = true;
+            if (kbInfo.type === KeyboardEventTypes.KEYDOWN) {
+                this.inputMap[key] = true;
+                if (key === 'v') {
+                    this.toggleCamera(scene);
+                }
+            }
             if (kbInfo.type === KeyboardEventTypes.KEYUP) this.inputMap[key] = false;
         });
         scene.onBeforeRenderObservable.add(() => this.updateMovement(scene));
@@ -101,8 +96,16 @@ export class PlayerService {
         const baseSpeed = 1.5;
         const sprintMultiplier = 2.0;
         const jumpStrength = 4;
-        const yaw = (this.camera as any).rotationOffset || 0;
-        const rad = (yaw * Math.PI) / 180;
+
+        this.yaw += this.rightJoystick.deltaPosition.x * 2;
+        this.pitch += this.rightJoystick.deltaPosition.y * 2;
+        this.pitch = Math.max(-60, Math.min(60, this.pitch));
+
+        const rad = (this.yaw * Math.PI) / 180;
+
+        this.firstPersonCamera.rotation.x = this.pitch * Math.PI / 180;
+        this.firstPersonCamera.rotation.y = rad;
+        this.thirdPersonCamera.rotationOffset = this.yaw;
 
         const forward = new Vector3(-Math.sin(rad), 0, -Math.cos(rad));
         const right = new Vector3(-Math.sin(rad + Math.PI / 2), 0, -Math.cos(rad + Math.PI / 2));
@@ -112,6 +115,9 @@ export class PlayerService {
         if (this.inputMap['s']) moveImpulse.subtractInPlace(forward);
         if (this.inputMap['a']) moveImpulse.subtractInPlace(right);
         if (this.inputMap['d']) moveImpulse.addInPlace(right);
+
+        moveImpulse.addInPlace(forward.scale(this.leftJoystick.deltaPosition.y));
+        moveImpulse.addInPlace(right.scale(this.leftJoystick.deltaPosition.x));
 
         if (moveImpulse.length() > 0) {
             moveImpulse.normalize();
@@ -135,8 +141,25 @@ export class PlayerService {
         }
 
         this.playerMesh.rotationQuaternion = null;
-        this.playerMesh.rotation.set(0, this.playerMesh.rotation.y, 0);
+        this.playerMesh.rotation.set(0, this.yaw * Math.PI / 180, 0);
         impostor.setAngularVelocity(Vector3.Zero());
+    }
+
+    private toggleCamera(scene: Scene): void {
+        this.isFirstPerson = !this.isFirstPerson;
+        if (this.isFirstPerson) {
+            scene.activeCamera = this.firstPersonCamera;
+            this.playerMesh.isVisible = false;
+            if (this.playerMesh.material) {
+                (this.playerMesh.material as any).wireframe = false;
+            }
+        } else {
+            scene.activeCamera = this.thirdPersonCamera;
+            this.playerMesh.isVisible = true;
+            if (this.playerMesh.material) {
+                (this.playerMesh.material as any).wireframe = true;
+            }
+        }
     }
 }
 
