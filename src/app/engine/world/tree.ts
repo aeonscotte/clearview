@@ -1,6 +1,6 @@
 // src/app/engine/world/tree.ts
 import { Scene } from '@babylonjs/core/scene';
-import { TransformNode, Mesh, MeshBuilder } from '@babylonjs/core/Meshes';
+import { TransformNode, MeshBuilder } from '@babylonjs/core/Meshes';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { MaterialService } from '../material/material.service';
@@ -14,19 +14,18 @@ export interface TreeOptions {
     maxGrowth?: number;
     branchSmooth?: number;
     minTipRadius?: number;
-    branchAngle?: number;      // max angle deviation in degrees
-    lengthDecay?: number;      // multiplier for child branch length
-    radiusDecay?: number;      // multiplier for child radius reduction
+    branchAngle?: number;      // degrees
+    lengthFactor?: number;     // child branch length multiplier
+    baseTopFactor?: number;    // fraction of base radius for initial top radius
+    tipFactor?: number;        // fraction of base radius at tips
+    maxBranches?: number;      // maximum number of child branches
 }
 
 export class Tree {
     private static barkMaterial: PBRMaterial | null = null;
 
-    private root: TransformNode;
-    private randSeed: number;
-
     private readonly defaults: Required<TreeOptions> = {
-        seed: 1,
+        seed: 46,
         iterations: 5,
         initialHeight: 4,
         trunkRadius: 0.2,
@@ -35,22 +34,14 @@ export class Tree {
         branchSmooth: 12,
         minTipRadius: 0.01,
         branchAngle: 20,
-        lengthDecay: 0.9,
-        radiusDecay: 0.7,
+        lengthFactor: 0.9,
+        baseTopFactor: 0.7,
+        tipFactor: 0.3,
+        maxBranches: 3,       // inclusive upper bound will add 1
     };
 
-    private _cylOpts = {
-        height: 1,
-        diameterTop: 1,
-        diameterBottom: 1,
-        tessellation: 12,
-        cap: Mesh.NO_CAP,
-    };
-
-    private _sphereOpts = {
-        diameter: 1,
-        segments: 12,
-    };
+    private root: TransformNode;
+    private randSeed: number;
 
     constructor(
         private scene: Scene,
@@ -58,20 +49,22 @@ export class Tree {
         private options: TreeOptions = {},
     ) {
         this.root = new TransformNode('treeRoot', scene);
-        this.randSeed = this.options.seed ?? this.defaults.seed;
+        const opts = { ...this.defaults, ...this.options };
+        this.randSeed = opts.seed;
         this.ensureBarkMaterial();
-        this.createTree();
+        const trunk = this.branch(opts.initialHeight, opts.iterations, opts.trunkRadius, opts);
+        trunk.parent = this.root;
     }
 
     private ensureBarkMaterial(): void {
         if (!Tree.barkMaterial) {
-            const barkPath = '/assets/materials/nature/bark_willow/';
+            const path = '/assets/materials/nature/bark_willow/';
             Tree.barkMaterial = this.materialService.createPbrMaterial(
                 'willow-bark',
                 {
-                    albedo: `${barkPath}bark_willow_diff_1k.jpg`,
-                    ao: `${barkPath}bark_willow_ao_1k.jpg`,
-                    metalRough: `${barkPath}bark_willow_arm_1k.jpg`,
+                    albedo: `${path}bark_willow_diff_1k.jpg`,
+                    ao: `${path}bark_willow_ao_1k.jpg`,
+                    metalRough: `${path}bark_willow_arm_1k.jpg`,
                 },
                 this.scene,
                 1,
@@ -84,60 +77,57 @@ export class Tree {
         return min + (x - Math.floor(x)) * (max - min);
     }
 
-    private createTree(): void {
-        const opts = { ...this.defaults, ...this.options };
-        this.branch(opts.initialHeight, opts.iterations, opts.trunkRadius, this.root, opts);
-    }
-
-    private branch(size: number, depth: number, baseRadius: number, parent: TransformNode, opts: Required<TreeOptions>): void {
+    private branch(size: number, depth: number, baseRadius: number, opts: Required<TreeOptions>): TransformNode {
         const isTip = depth === 0 || size < 0.5;
 
         let numBranches = 0;
-        let topRadius = baseRadius * opts.radiusDecay;
+        let topRadius = baseRadius * opts.baseTopFactor;
 
         if (!isTip) {
-            numBranches = Math.floor(this.rand(1, 4));
+            numBranches = Math.floor(this.rand(1, opts.maxBranches + 1));
             topRadius = Math.max(baseRadius / Math.sqrt(numBranches), opts.minTipRadius);
         } else {
-            topRadius = Math.max(baseRadius * 0.3, opts.minTipRadius);
+            topRadius = Math.max(baseRadius * opts.tipFactor, opts.minTipRadius);
         }
 
-        this._cylOpts.height = size;
-        this._cylOpts.diameterTop = topRadius * 2;
-        this._cylOpts.diameterBottom = baseRadius * 2;
-        this._cylOpts.tessellation = opts.branchSmooth;
+        const node = new TransformNode('branchNode', this.scene);
 
-        const cyl = MeshBuilder.CreateCylinder('branch', this._cylOpts, this.scene);
+        const cyl = MeshBuilder.CreateCylinder('cyl', {
+            height: size,
+            diameterTop: topRadius * 2,
+            diameterBottom: baseRadius * 2,
+            tessellation: opts.branchSmooth,
+        }, this.scene);
         cyl.material = Tree.barkMaterial!;
-        cyl.parent = parent;
+        cyl.parent = node;
         cyl.position.y = size / 2;
 
         if (!isTip) {
             for (let i = 0; i < numBranches; i++) {
                 const mod = this.rand(opts.minGrowth, opts.maxGrowth);
-                const angle = opts.branchAngle * Math.PI / 180;
-                const rotX = this.rand(-angle, angle);
-                const rotY = this.rand(-angle, angle);
-                const rotZ = this.rand(-angle, angle);
+                const rotX = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
+                const rotY = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
+                const rotZ = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
 
-                const childSize = size * opts.lengthDecay * mod;
+                const childSize = size * opts.lengthFactor * mod;
                 const childRadius = topRadius;
 
-                this._sphereOpts.diameter = Math.max(baseRadius, childRadius) * 1.5;
-                this._sphereOpts.segments = opts.branchSmooth;
-                const knuckle = MeshBuilder.CreateSphere('knuckle', this._sphereOpts, this.scene);
+                const knuckle = MeshBuilder.CreateSphere('knuckle', {
+                    diameter: Math.max(baseRadius, childRadius) * 1.5,
+                    segments: opts.branchSmooth,
+                }, this.scene);
                 knuckle.material = Tree.barkMaterial!;
-                knuckle.parent = cyl;
+                knuckle.parent = node;
                 knuckle.position.y = size;
 
-                const childNode = new TransformNode('branchNode', this.scene);
-                childNode.parent = knuckle;
-                childNode.rotation.set(rotX, rotY, rotZ);
-                childNode.position.set(0, 0, 0);
-
-                this.branch(childSize, depth - 1, childRadius, childNode, opts);
+                const child = this.branch(childSize, depth - 1, childRadius, opts);
+                child.parent = knuckle;
+                child.position = new Vector3(0, 0, 0);
+                child.rotation = new Vector3(rotX, rotY, rotZ);
             }
         }
+
+        return node;
     }
 
     setPosition(pos: Vector3): void {
