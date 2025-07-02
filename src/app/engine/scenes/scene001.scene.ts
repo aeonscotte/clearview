@@ -110,7 +110,10 @@ export class Scene001 extends BaseScene {
             `${this.terrainPath}albedo.png`,
             `${this.terrainPath}normalHeight.png`,
             `${this.terrainPath}ao.png`,
-            `${this.terrainPath}metalRough.png`
+            `${this.terrainPath}metalRough.png`,
+            '/assets/materials/nature/bark_willow/bark_willow_diff_1k.jpg',
+            '/assets/materials/nature/bark_willow/bark_willow_ao_1k.jpg',
+            '/assets/materials/nature/bark_willow/bark_willow_arm_1k.jpg'
         ];
 
         // Preload all textures
@@ -175,11 +178,11 @@ export class Scene001 extends BaseScene {
             });
 
             // Create test campfires
-            const campfire1 = new Campfire(this.scene, new Vector3(0, 9.45, 0), this.timeService);
-            const campfire2 = new Campfire(this.scene, new Vector3(1, 9.7, 1), this.timeService);
-            const campfire3 = new Campfire(this.scene, new Vector3(1, 9.7, -1), this.timeService);
-            const campfire4 = new Campfire(this.scene, new Vector3(-1, 9.2, -1), this.timeService);
-            const campfire5 = new Campfire(this.scene, new Vector3(-1, 9.2, 1), this.timeService);
+            const campfire1 = new Campfire(this.scene, new Vector3(0, 9.45, 0), this.timeService, this.materialService);
+            const campfire2 = new Campfire(this.scene, new Vector3(1, 9.7, 1), this.timeService, this.materialService);
+            const campfire3 = new Campfire(this.scene, new Vector3(1, 9.7, -1), this.timeService, this.materialService);
+            const campfire4 = new Campfire(this.scene, new Vector3(-1, 9.2, -1), this.timeService, this.materialService);
+            const campfire5 = new Campfire(this.scene, new Vector3(-1, 9.2, 1), this.timeService, this.materialService);
 
             this.campfires.push(campfire1, campfire2, campfire3, campfire4, campfire5);
         });
