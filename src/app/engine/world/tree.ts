@@ -42,7 +42,7 @@ export class Tree {
         bushiness: 0.5,
         lengthFactor: 0.9,
         lengthDecay: 0.75,
-        phototropism: 0.7,
+        phototropism: 1,
         baseTopFactor: 0.7,
         tipFactor: 0.3,
         maxBranches: 3,       // inclusive upper bound will add 1
@@ -118,7 +118,9 @@ export class Tree {
                 const yaw = (i * yawSpacing + this.rand(-opts.angleTolerance, opts.angleTolerance)) * Math.PI / 180;
                 const phototropismFactor = 1 - opts.phototropism * normalizedDepth;
                 const pitchBase = (Math.PI / 2) * opts.bushiness * phototropismFactor;
-                const pitch = pitchBase + this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
+                let pitch = pitchBase + this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
+                const maxPitch = 75 * Math.PI / 180;
+                pitch = Math.max(0, Math.min(maxPitch, pitch));
                 const roll = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
 
                 const childSize = size * opts.lengthFactor * opts.lengthDecay * mod;
