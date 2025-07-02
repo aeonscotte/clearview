@@ -145,7 +145,7 @@ export class Scene001 extends BaseScene {
             );
             testBox.material = crateMaterial;
 
-            this.physicsService.addImpostor(testBox, PhysicsImpostor.BoxImpostor, { mass: 1, friction: 0.5 });
+            this.physicsService.addImpostor(testBox, PhysicsImpostor.BoxImpostor, { mass: 0.3, friction: 0.5 });
             console.log('Test box impostor:', testBox.physicsImpostor?.type);
 
             // Heightmap terrain as before
