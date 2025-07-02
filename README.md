@@ -395,7 +395,7 @@ update(): void {
 
 - **Chrome**: 90+
 - **Firefox**: 88+
-- **Safari**: 14+
+- **Safari**: 14+ (TODO: UI has glitches, replace with finished textures?)
 - **Edge**: 90+
 - **Mobile**: iOS Safari 14+, Chrome for Android 90+
 
