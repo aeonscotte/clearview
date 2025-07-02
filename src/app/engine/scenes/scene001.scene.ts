@@ -128,9 +128,9 @@ export class Scene001 extends BaseScene {
             console.log('Flat ground impostor:', flatGround.physicsImpostor?.type);
 
             // Add a test box above the ground using the new crate material
-            const testBox = MeshBuilder.CreateBox('testBox', { size: 4 }, this.scene);
+            const testBox = MeshBuilder.CreateBox('testBox', { size: 0.6 }, this.scene);
             testBox.position = new Vector3(10, 20, 0);
-            testBox.scaling = new Vector3(0.6, 0.6, 0.6);
+            // testBox.scaling = new Vector3(0.6, 0.6, 0.6);
 
             const cratePath = '/assets/materials/building/Wood_Crate_001_SD/';
             const crateMaterial = this.materialService.createPbrMaterial(
