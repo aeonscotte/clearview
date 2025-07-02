@@ -112,9 +112,8 @@ export class Scene001 extends BaseScene {
             `${this.terrainPath}ao.png`,
             `${this.terrainPath}metalRough.png`,
             '/assets/materials/nature/bark_willow/bark_willow_diff_1k.jpg',
-            '/assets/materials/nature/bark_willow/bark_willow_nor_dx_1k.exr',
             '/assets/materials/nature/bark_willow/bark_willow_ao_1k.jpg',
-            '/assets/materials/nature/bark_willow/bark_willow_rough_1k.exr'
+            '/assets/materials/nature/bark_willow/bark_willow_arm_1k.jpg'
         ];
 
         // Preload all textures

@@ -6,7 +6,7 @@ import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
-import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TimeService } from '../physics/time.service';
@@ -27,8 +27,7 @@ export class Campfire {
 
     // Shared materials and textures
     private static barkMaterial: PBRMaterial | null = null;
-    private static ringMaterial: PBRMaterial | null = null;
-    private static ringTexture: DynamicTexture | null = null;
+    private static ringMaterial: StandardMaterial | null = null;
 
     private root: TransformNode;
     private logs: TransformNode[] = [];
@@ -63,36 +62,19 @@ export class Campfire {
                 'willow-bark',
                 {
                     albedo: `${barkPath}bark_willow_diff_1k.jpg`,
-                    normal: `${barkPath}bark_willow_nor_dx_1k.exr`,
                     ao: `${barkPath}bark_willow_ao_1k.jpg`,
-                    roughness: `${barkPath}bark_willow_rough_1k.exr`,
+                    metalRough: `${barkPath}bark_willow_arm_1k.jpg`,
                 },
                 this.scene,
                 1,
             );
         }
 
-        // Ring material uses a simple procedurally generated texture
+        // Simple solid color material for log ends
         if (!Campfire.ringMaterial) {
-            if (!Campfire.ringTexture) {
-                const size = 512;
-                Campfire.ringTexture = new DynamicTexture('logRingTex', { width: size, height: size }, this.scene, false);
-                const ctx = Campfire.ringTexture.getContext();
-                ctx.fillStyle = '#e3c48d';
-                ctx.fillRect(0, 0, size, size);
-                ctx.strokeStyle = '#a57c52';
-                ctx.lineWidth = 4;
-                for (let r = 20; r < size / 2; r += 20) {
-                    ctx.beginPath();
-                    ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                Campfire.ringTexture.update();
-            }
-            Campfire.ringMaterial = new PBRMaterial('logRingMat', this.scene);
-            Campfire.ringMaterial.albedoTexture = Campfire.ringTexture;
-            Campfire.ringMaterial.metallic = 0;
-            Campfire.ringMaterial.roughness = 1;
+            Campfire.ringMaterial = new StandardMaterial('logRingMat', this.scene);
+            Campfire.ringMaterial.diffuseColor = new Color3(0.89, 0.77, 0.55);
+            Campfire.ringMaterial.specularColor = Color3.Black();
         }
 
         const barkMat = Campfire.barkMaterial!;
