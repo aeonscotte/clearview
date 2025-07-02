@@ -15,6 +15,8 @@ export interface TreeOptions {
     branchSmooth?: number;
     minTipRadius?: number;
     branchAngle?: number;      // degrees
+    angleTolerance?: number;   // yaw variance from even spacing (degrees)
+    bushiness?: number;        // 0 vertical, 1 horizontal
     lengthFactor?: number;     // child branch length multiplier
     baseTopFactor?: number;    // fraction of base radius for initial top radius
     tipFactor?: number;        // fraction of base radius at tips
@@ -34,6 +36,8 @@ export class Tree {
         branchSmooth: 12,
         minTipRadius: 0.01,
         branchAngle: 20,
+        angleTolerance: 10,
+        bushiness: 0.6,
         lengthFactor: 0.9,
         baseTopFactor: 0.7,
         tipFactor: 0.3,
@@ -103,17 +107,19 @@ export class Tree {
         cyl.position.y = size / 2;
 
         if (!isTip) {
+            const yawSpacing = 360 / numBranches;
             for (let i = 0; i < numBranches; i++) {
                 const mod = this.rand(opts.minGrowth, opts.maxGrowth);
-                const rotX = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
-                const rotY = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
-                const rotZ = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
+                const yaw = (i * yawSpacing + this.rand(-opts.angleTolerance, opts.angleTolerance)) * Math.PI / 180;
+                const pitchBase = (Math.PI / 2) * opts.bushiness;
+                const pitch = pitchBase + this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
+                const roll = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
 
                 const childSize = size * opts.lengthFactor * mod;
                 const childRadius = topRadius;
 
                 const knuckle = MeshBuilder.CreateSphere('knuckle', {
-                    diameter: Math.max(baseRadius, childRadius) * 1.5,
+                    diameter: Math.max(childRadius, topRadius) * 2 * 1.05,
                     segments: opts.branchSmooth,
                 }, this.scene);
                 knuckle.material = Tree.barkMaterial!;
@@ -123,7 +129,7 @@ export class Tree {
                 const child = this.branch(childSize, depth - 1, childRadius, opts);
                 child.parent = knuckle;
                 child.position = new Vector3(0, 0, 0);
-                child.rotation = new Vector3(rotX, rotY, rotZ);
+                child.rotation = new Vector3(pitch, yaw, roll);
             }
         }
 
