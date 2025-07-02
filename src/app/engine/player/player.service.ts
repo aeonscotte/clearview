@@ -40,7 +40,7 @@ export class PlayerService {
         this.playerMesh.physicsImpostor = new PhysicsImpostor(
             this.playerMesh,
             PhysicsImpostor.NoImpostor,
-            { mass: 0 },
+            { mass: 0.07, friction: 0.3, restitution: 0 },
             scene
         );
 
@@ -153,7 +153,14 @@ export class PlayerService {
         const right = new Vector3(-Math.sin(rad + Math.PI / 2), 0, -Math.cos(rad + Math.PI / 2));
 
         const ray = new Ray(this.playerMesh.position, Vector3.Down(), this.height / 2 + 0.2);
-        const pick = scene.pickWithRay(ray, m => !!m.physicsImpostor && m.physicsImpostor.mass === 0 && m !== this.playerMesh);
+        const pick = scene.pickWithRay(
+            ray,
+            (m) =>
+                !!m.physicsImpostor &&
+                (m.physicsImpostor as PhysicsImpostor).physicsBody &&
+                m.physicsImpostor.mass === 0 &&
+                m !== this.playerMesh
+        );
         const isGrounded = !!pick && pick.hit;
 
         if (this.inputMap['w']) moveImpulse.addInPlace(forward);
