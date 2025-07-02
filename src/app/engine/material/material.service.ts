@@ -11,46 +11,69 @@ import { simpleWaterVertex, simpleWaterFragment } from '../../engine/shaders/sim
 export class MaterialService {
     constructor(private assetManager: AssetManagerService) { }
 
-    createGroundMaterial(materialUrl: string, tileSize: number, scene: Scene): PBRMaterial {
-        // Use scene ID in cache key
-        const materialName = `ground-${materialUrl.replace(/\//g, '-')}-${tileSize}`;
-
+    /**
+     * General helper for creating PBR materials from a set of texture URLs.
+     * Textures are automatically cached via the AssetManagerService and can be
+     * reused across scenes.
+     */
+    createPbrMaterial(
+        materialName: string,
+        textureUrls: {
+            albedo?: string;
+            normal?: string;
+            ao?: string;
+            metalRough?: string;
+            roughness?: string;
+        },
+        scene: Scene,
+        tileSize = 1,
+    ): PBRMaterial {
         // Check for cached material
         let material = this.assetManager.getMaterial(materialName, scene) as PBRMaterial;
         if (material) return material;
 
         try {
-            // Create textures
-            const albedoTexUrl = `${materialUrl}albedo.png`;
-            const normHeightTexUrl = `${materialUrl}normalHeight.png`;
-            const aoTexUrl = `${materialUrl}ao.png`;
-            const metalRoughTexUrl = `${materialUrl}metalRough.png`;
-
-            // Get textures from asset manager
-            const albedoTex = this.assetManager.getTexture(albedoTexUrl, scene);
-            const normHeightTex = this.assetManager.getTexture(normHeightTexUrl, scene);
-            const aoTex = this.assetManager.getTexture(aoTexUrl, scene);
-            const metalRoughTex = this.assetManager.getTexture(metalRoughTexUrl, scene);
-
-            // Set texture tiling
-            [albedoTex, normHeightTex, aoTex, metalRoughTex].forEach(tex => {
+            const loadedTextures: any = {};
+            const assignTexture = (key: keyof typeof textureUrls) => {
+                const url = textureUrls[key];
+                if (!url) return undefined;
+                const tex = this.assetManager.getTexture(url, scene);
                 tex.uScale = tileSize;
                 tex.vScale = tileSize;
-            });
+                loadedTextures[key] = tex;
+                return tex;
+            };
 
             // Create the material
             material = new PBRMaterial(materialName, scene);
 
-            material.albedoTexture = albedoTex;
-            material.bumpTexture = normHeightTex;
-            material.useParallax = true;
-            material.useParallaxOcclusion = true;
-            material.parallaxScaleBias = 0.03;
-            material.metallicTexture = metalRoughTex;
-            material.useRoughnessFromMetallicTextureAlpha = true;
-            material.ambientTexture = aoTex;
-            material.ambientTextureStrength = 0.3;
-            material.bumpTexture.level = 0.5;
+            const albedo = assignTexture('albedo');
+            if (albedo) material.albedoTexture = albedo;
+
+            const normal = assignTexture('normal');
+            if (normal) {
+                material.bumpTexture = normal;
+                material.bumpTexture.level = 0.5;
+            }
+
+            const metalRough = assignTexture('metalRough');
+            if (metalRough) {
+                material.metallicTexture = metalRough;
+                material.useRoughnessFromMetallicTextureAlpha = true;
+            }
+
+            const roughness = assignTexture('roughness');
+            if (roughness) {
+                material.metallicTexture = roughness;
+                material.useRoughnessFromMetallicTextureAlpha = false;
+            }
+
+            const ao = assignTexture('ao');
+            if (ao) {
+                material.ambientTexture = ao;
+                material.ambientTextureStrength = 0.3;
+            }
+
             material.maxSimultaneousLights = 8;
 
             // Register the material
@@ -58,13 +81,38 @@ export class MaterialService {
 
             return material;
         } catch (error) {
-            console.error('Error creating material:', error);
+            console.error('Error creating PBR material:', error);
 
-            // Create fallback material if loading fails
-            const fallback = new PBRMaterial("fallback-material", scene);
-            fallback.albedoColor = new Color3(1, 0, 1); // Magenta for visibility
+            const fallback = new PBRMaterial('fallback-material', scene);
+            fallback.albedoColor = new Color3(1, 0, 1);
             return fallback;
         }
+    }
+
+    createGroundMaterial(materialUrl: string, tileSize: number, scene: Scene): PBRMaterial {
+        const materialName = `ground-${materialUrl.replace(/\//g, '-')}-${tileSize}`;
+
+        const material = this.createPbrMaterial(
+            materialName,
+            {
+                albedo: `${materialUrl}albedo.png`,
+                normal: `${materialUrl}normalHeight.png`,
+                ao: `${materialUrl}ao.png`,
+                metalRough: `${materialUrl}metalRough.png`,
+            },
+            scene,
+            tileSize
+        );
+
+        // Apply ground specific settings
+        material.useParallax = true;
+        material.useParallaxOcclusion = true;
+        material.parallaxScaleBias = 0.03;
+        if (material.bumpTexture) {
+            material.bumpTexture.level = 0.5;
+        }
+
+        return material;
     }
 
     createWaterMaterial(scene: Scene): ShaderMaterial {

@@ -127,10 +127,24 @@ export class Scene001 extends BaseScene {
             this.physicsService.addImpostor(flatGround, PhysicsImpostor.BoxImpostor, { mass: 0, friction: 0.8 });
             console.log('Flat ground impostor:', flatGround.physicsImpostor?.type);
 
-            // Add a test box above the ground
+            // Add a test box above the ground using the new crate material
             const testBox = MeshBuilder.CreateBox('testBox', { size: 4 }, this.scene);
             testBox.position = new Vector3(10, 20, 0);
-            testBox.material = new StandardMaterial('testBoxMat', this.scene);
+            testBox.scaling = new Vector3(0.6, 0.6, 0.6);
+
+            const cratePath = '/assets/materials/building/Wood_Crate_001_SD/';
+            const crateMaterial = this.materialService.createPbrMaterial(
+                'crate-material',
+                {
+                    albedo: `${cratePath}Wood_Crate_001_basecolor.jpg`,
+                    normal: `${cratePath}Wood_Crate_001_normal.jpg`,
+                    ao: `${cratePath}Wood_Crate_001_ambientOcclusion.jpg`,
+                    roughness: `${cratePath}Wood_Crate_001_roughness.jpg`,
+                },
+                this.scene
+            );
+            testBox.material = crateMaterial;
+
             this.physicsService.addImpostor(testBox, PhysicsImpostor.BoxImpostor, { mass: 1, friction: 0.5 });
             console.log('Test box impostor:', testBox.physicsImpostor?.type);
 
