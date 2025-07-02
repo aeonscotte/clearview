@@ -19,6 +19,7 @@ import { AssetManagerService } from '../core/asset-manager.service';
 import { GroundMesh } from '@babylonjs/core';
 import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor';
 import { Campfire } from '../world/campfire';
+import { Tree } from '../world/tree';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 
 // Import shader code
@@ -30,6 +31,7 @@ export class Scene001 extends BaseScene {
     // Asset paths
     private terrainPath = '/assets/materials/terrain/rocky-rugged-terrain_1/';
     private campfires: Campfire[] = [];
+    private trees: Tree[] = [];
 
     constructor(
         engineService: EngineService,
@@ -185,6 +187,16 @@ export class Scene001 extends BaseScene {
             const campfire5 = new Campfire(this.scene, new Vector3(-1, 9.2, 1), this.timeService, this.materialService);
 
             this.campfires.push(campfire1, campfire2, campfire3, campfire4, campfire5);
+
+            // Create a sample tree
+            const tree = new Tree(this.scene, this.materialService, {
+                seed: 46,
+                iterations: 5,
+                initialHeight: 4,
+                trunkRadius: 0.2,
+            });
+            tree.setPosition(new Vector3(2, 9.5, 0));
+            this.trees.push(tree);
         });
     }
 
@@ -207,6 +219,8 @@ export class Scene001 extends BaseScene {
         if (this.scene) {
             this.campfires.forEach(f => f.dispose());
             this.campfires = [];
+            this.trees.forEach(t => t.dispose());
+            this.trees = [];
 
             // Let the AssetManager know we're disposing this scene
             this.assetManager.handleSceneDisposal(this.scene);
