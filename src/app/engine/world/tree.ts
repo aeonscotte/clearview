@@ -18,6 +18,8 @@ export interface TreeOptions {
     angleTolerance?: number;   // yaw variance from even spacing (degrees)
     bushiness?: number;        // 0 vertical, 1 horizontal
     lengthFactor?: number;     // child branch length multiplier
+    lengthDecay?: number;      // additional reduction in length per generation
+    phototropism?: number;     // 0 none, 1 strong upward bias
     baseTopFactor?: number;    // fraction of base radius for initial top radius
     tipFactor?: number;        // fraction of base radius at tips
     maxBranches?: number;      // maximum number of child branches
@@ -39,6 +41,8 @@ export class Tree {
         angleTolerance: 10,
         bushiness: 0.6,
         lengthFactor: 0.9,
+        lengthDecay: 0.75,
+        phototropism: 0.7,
         baseTopFactor: 0.7,
         tipFactor: 0.3,
         maxBranches: 3,       // inclusive upper bound will add 1
@@ -108,14 +112,16 @@ export class Tree {
 
         if (!isTip) {
             const yawSpacing = 360 / numBranches;
+            const normalizedDepth = (opts.iterations - depth) / opts.iterations;
             for (let i = 0; i < numBranches; i++) {
                 const mod = this.rand(opts.minGrowth, opts.maxGrowth);
                 const yaw = (i * yawSpacing + this.rand(-opts.angleTolerance, opts.angleTolerance)) * Math.PI / 180;
-                const pitchBase = (Math.PI / 2) * opts.bushiness;
+                const phototropismFactor = 1 - opts.phototropism * normalizedDepth;
+                const pitchBase = (Math.PI / 2) * opts.bushiness * phototropismFactor;
                 const pitch = pitchBase + this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
                 const roll = this.rand(-opts.branchAngle, opts.branchAngle) * Math.PI / 180;
 
-                const childSize = size * opts.lengthFactor * mod;
+                const childSize = size * opts.lengthFactor * opts.lengthDecay * mod;
                 const childRadius = topRadius;
 
                 const knuckle = MeshBuilder.CreateSphere('knuckle', {
