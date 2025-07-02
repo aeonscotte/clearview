@@ -18,6 +18,8 @@ export class PlayerService {
     private thirdPersonCamera!: FollowCamera;
     private leftJoystick!: VirtualJoystick;
     private rightJoystick!: VirtualJoystick;
+    private playerVisual!: Mesh;
+    private playerMaterial!: StandardMaterial;
     private readonly radius = 0.5;
     private readonly height = 1.8;
     private yaw = 0;
@@ -40,15 +42,15 @@ export class PlayerService {
         this.playerMesh.physicsImpostor = new PhysicsImpostor(
             this.playerMesh,
             PhysicsImpostor.NoImpostor,
-            { mass: 0.07, friction: 0.3, restitution: 0 },
+            { mass: 1, friction: 0.3, restitution: 0 },
             scene
         );
 
-        const visual = MeshBuilder.CreateCapsule('playerVisual', { height, radius }, scene);
-        visual.parent = this.playerMesh;
-        visual.isVisible = false;
-        const material = new StandardMaterial('playerMat', scene);
-        visual.material = material;
+        this.playerVisual = MeshBuilder.CreateCapsule('playerVisual', { height, radius }, scene);
+        this.playerVisual.parent = this.playerMesh;
+        this.playerVisual.isVisible = false;
+        this.playerMaterial = new StandardMaterial('playerMat', scene);
+        this.playerVisual.material = this.playerMaterial;
 
         const sphereOffset = height / 2 - radius;
 
@@ -59,7 +61,7 @@ export class PlayerService {
         sphereBottom.physicsImpostor = new PhysicsImpostor(
             sphereBottom,
             PhysicsImpostor.SphereImpostor,
-            { mass: 0.07 / 3, friction: 0.3, restitution: 0 },
+            { mass: 0, friction: 0.3, restitution: 0 },
             scene
         );
 
@@ -70,7 +72,7 @@ export class PlayerService {
         sphereTop.physicsImpostor = new PhysicsImpostor(
             sphereTop,
             PhysicsImpostor.SphereImpostor,
-            { mass: 0.07 / 3, friction: 0.3, restitution: 0 },
+            { mass: 0, friction: 0.3, restitution: 0 },
             scene
         );
 
@@ -81,9 +83,11 @@ export class PlayerService {
         cylinder.physicsImpostor = new PhysicsImpostor(
             cylinder,
             PhysicsImpostor.CylinderImpostor,
-            { mass: 0.07 / 3, friction: 0.3, restitution: 0 },
+            { mass: 0, friction: 0.3, restitution: 0 },
             scene
         );
+
+        this.playerMesh.physicsImpostor.forceUpdate();
 
         this.playerMesh.physicsImpostor.registerBeforePhysicsStep(() => {
             this.playerMesh.rotationQuaternion = null;
@@ -201,16 +205,12 @@ export class PlayerService {
         this.isFirstPerson = !this.isFirstPerson;
         if (this.isFirstPerson) {
             scene.activeCamera = this.firstPersonCamera;
-            this.playerMesh.isVisible = false;
-            if (this.playerMesh.material) {
-                (this.playerMesh.material as any).wireframe = false;
-            }
+            this.playerVisual.isVisible = false;
+            this.playerMaterial.wireframe = false;
         } else {
             scene.activeCamera = this.thirdPersonCamera;
-            this.playerMesh.isVisible = true;
-            if (this.playerMesh.material) {
-                (this.playerMesh.material as any).wireframe = true;
-            }
+            this.playerVisual.isVisible = true;
+            this.playerMaterial.wireframe = true;
         }
     }
 }
