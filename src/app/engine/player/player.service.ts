@@ -86,6 +86,11 @@ export class PlayerService {
         );
 
         this.playerMesh.physicsImpostor.forceUpdate();
+        const body = this.playerMesh.physicsImpostor.physicsBody as any;
+        if (body) {
+            body.linearDamping = 0.9;
+            body.angularDamping = 1;
+        }
 
         this.playerMesh.physicsImpostor.registerBeforePhysicsStep(() => {
             this.playerMesh.rotationQuaternion = null;
@@ -177,31 +182,26 @@ export class PlayerService {
         );
         const isGrounded = !!pick && pick.hit;
 
+        const moving =
+            this.inputMap['w'] || this.inputMap['a'] || this.inputMap['s'] || this.inputMap['d'];
+
         if (this.inputMap['w']) moveImpulse.addInPlace(forward);
         if (this.inputMap['s']) moveImpulse.subtractInPlace(forward);
         if (this.inputMap['a']) moveImpulse.subtractInPlace(right);
         if (this.inputMap['d']) moveImpulse.addInPlace(right);
 
-
-        if (moveImpulse.length() > 0) {
+        if (moving && moveImpulse.length() > 0) {
             moveImpulse.normalize();
             const speed = baseSpeed * (this.inputMap['shift'] ? sprintMultiplier : 1);
             moveImpulse.scaleInPlace(speed);
-            impostor.setLinearVelocity(new Vector3(
-                moveImpulse.x,
-                velocity.y,
-                moveImpulse.z
-            ));
+            impostor.setLinearVelocity(new Vector3(moveImpulse.x, velocity.y, moveImpulse.z));
         } else {
-            impostor.setLinearVelocity(new Vector3(
-                velocity.x * 0.9,
-                velocity.y,
-                velocity.z * 0.9
-            ));
+            impostor.setLinearVelocity(new Vector3(0, velocity.y, 0));
         }
 
         if (this.inputMap[' '] && isGrounded) {
-            impostor.setLinearVelocity(new Vector3(velocity.x, jumpStrength, velocity.z));
+            const v = impostor.getLinearVelocity() || Vector3.Zero();
+            impostor.setLinearVelocity(new Vector3(v.x, jumpStrength, v.z));
         }
 
         this.playerMesh.rotationQuaternion = null;

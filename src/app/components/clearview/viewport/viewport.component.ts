@@ -8,11 +8,17 @@ import { GuiService } from '../../../engine/core/gui.service';
 import { AssetManagerService } from '../../../engine/core/asset-manager.service';
 import { PauseMenuComponent } from '../../ui/pause-menu/pause-menu.component';
 import { LoadingIndicatorComponent } from '../../ui/loading-indicator/loading-indicator.component';
+import { FpsCounterComponent } from '../../ui/fps-counter/fps-counter.component';
 
 @Component({
     selector: 'clearview-viewport',
     standalone: true,
-    imports: [CommonModule, PauseMenuComponent, LoadingIndicatorComponent],
+    imports: [
+        CommonModule,
+        PauseMenuComponent,
+        LoadingIndicatorComponent,
+        FpsCounterComponent
+    ],
     templateUrl: './viewport.component.html',
     styleUrls: ['./viewport.component.less']
 })
