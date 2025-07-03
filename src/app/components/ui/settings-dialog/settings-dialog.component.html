@@ -4,7 +4,18 @@
         <div id="contain">
             <h2 class="title">Settings</h2>
             <div class="menu-content">
-                <p>Configure your experience.</p>
+                <label>
+                    Quality
+                    <select [(ngModel)]="settings.quality">
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </label>
+                <label>
+                    <input type="checkbox" [(ngModel)]="settings.showFps" /> Show FPS
+                </label>
+                <button class="btn-parchment" (click)="save()">Save</button>
                 <button class="btn-parchment" (click)="close()">Close</button>
             </div>
         </div>
