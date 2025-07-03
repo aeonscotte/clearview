@@ -8,11 +8,18 @@ import { GuiService } from '../../../engine/core/gui.service';
 import { AssetManagerService } from '../../../engine/core/asset-manager.service';
 import { PauseMenuComponent } from '../../ui/pause-menu/pause-menu.component';
 import { LoadingIndicatorComponent } from '../../ui/loading-indicator/loading-indicator.component';
+import { FpsCounterComponent } from '../../ui/fps-counter/fps-counter.component';
+import { PerformanceSettingsService } from '../../../engine/performance/performance-settings.service';
 
 @Component({
     selector: 'clearview-viewport',
     standalone: true,
-    imports: [CommonModule, PauseMenuComponent, LoadingIndicatorComponent],
+    imports: [
+        CommonModule,
+        PauseMenuComponent,
+        LoadingIndicatorComponent,
+        FpsCounterComponent
+    ],
     templateUrl: './viewport.component.html',
     styleUrls: ['./viewport.component.less']
 })
@@ -20,13 +27,18 @@ export class ViewportComponent implements AfterViewInit, OnDestroy {
     @ViewChild('renderCanvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
     private resizeListener: (() => void) | null = null;
 
+    showFps = true;
+
     constructor(
         private ngZone: NgZone,
         private engineService: EngineService,
         private sceneManager: SceneManagerService,
         private guiService: GuiService,
-        private assetManager: AssetManagerService
-    ) { }
+        private assetManager: AssetManagerService,
+        private perfSettings: PerformanceSettingsService
+    ) {
+        this.perfSettings.settings$.subscribe(s => this.showFps = s.showFps);
+    }
 
     async ngAfterViewInit(): Promise<void> {
         this.ngZone.runOutsideAngular(async () => {

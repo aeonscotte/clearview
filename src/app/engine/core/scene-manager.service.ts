@@ -5,6 +5,7 @@ import { BaseScene } from '../base/scene';
 import { EngineService } from './engine.service';
 import { Observable } from 'rxjs';
 import { AssetManagerService } from '../core/asset-manager.service';
+import { PerformanceService } from '../performance/performance.service';
 
 @Injectable({ providedIn: 'root' })
 export class SceneManagerService {
@@ -14,7 +15,8 @@ export class SceneManagerService {
     constructor(
         private engineService: EngineService,
         private assetManager: AssetManagerService,
-        private injector: Injector
+        private injector: Injector,
+        private perfService: PerformanceService
     ) { }
 
     async loadScene(sceneType: Type<BaseScene>, canvas: HTMLCanvasElement): Promise<void> {
@@ -23,6 +25,7 @@ export class SceneManagerService {
 
         // Create a fresh engine with the new canvas
         const engine = this.engineService.createEngine(canvas);
+        this.perfService.initialize(engine);
 
         // Get scene instance from Angular DI system
         this.currentSceneInstance = this.injector.get(sceneType);
@@ -49,6 +52,7 @@ export class SceneManagerService {
         this.renderLoopActive = true;
 
         engine.runRenderLoop(() => {
+            this.perfService.beginFrame();
             if (this.currentSceneInstance) {
                 const delta = engine.getDeltaTime();
                 this.currentSceneInstance.update(delta);
@@ -57,6 +61,7 @@ export class SceneManagerService {
                     scene.render();
                 }
             }
+            this.perfService.endFrame();
         });
     }
 
